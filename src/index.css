@@ -90,148 +90,153 @@ h1 {
   margin-bottom: 2rem;
 }
 
-/* Daily Timeline Layout */
-.day-block {
-  margin-bottom: 3rem;
+/* Date Selector */
+.date-selector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.date-selector select {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1rem;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Google Calendar Style Week View */
+.week-calendar-container {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border-color);
   border-radius: 8px;
+  background: #fff;
+  height: 75vh;
+  min-height: 600px;
   overflow: hidden;
-  background: #fff;
 }
 
-.day-header {
-  background: var(--table-header-bg);
-  padding: 1rem;
+.week-calendar-header {
+  display: flex;
   border-bottom: 1px solid var(--border-color);
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  text-align: center;
+  background: var(--table-header-bg);
 }
 
-.timeline-container {
-  display: flex;
-  flex-direction: column;
-  overflow-x: auto;
-}
-
-.timeline-wrapper {
-  min-width: 1000px;
-  display: flex;
-  flex-direction: column;
-}
-
-.timeline-axis {
-  display: flex;
-  border-bottom: 2px solid var(--border-color);
-  padding-left: 250px; /* Space for intern names */
-  position: relative;
-  background: #f8fafc;
-}
-
-.axis-hour {
-  flex: 1;
-  text-align: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  padding: 0.5rem 0;
-  border-left: 1px dashed var(--grid-line);
-}
-.axis-hour:first-child { border-left: none; }
-
-.intern-track {
-  display: flex;
-  border-bottom: 1px solid var(--grid-line);
-  position: relative;
-  height: 50px;
-  background: #fff;
-}
-
-.intern-track:last-child {
-  border-bottom: none;
-}
-
-.intern-track-name {
-  width: 250px;
+.time-axis-spacer {
+  width: 60px;
   flex-shrink: 0;
-  padding: 0 1rem;
-  display: flex;
-  align-items: center;
+  border-right: 1px solid var(--border-color);
+}
+
+.day-column-header {
+  flex: 1;
+  min-width: 120px;
+  text-align: center;
+  padding: 0.75rem 0;
+  border-right: 1px solid var(--border-color);
   font-weight: 600;
-  font-size: 0.9rem;
   color: var(--text-primary);
+}
+.day-column-header:last-child {
+  border-right: none;
+}
+
+.week-calendar-body {
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  position: relative;
+}
+
+.time-axis {
+  width: 60px;
+  flex-shrink: 0;
   background: #f8fafc;
-  border-right: 2px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
   position: sticky;
   left: 0;
-  z-index: 10;
+  z-index: 20;
 }
 
-.intern-track-timeline {
-  flex: 1;
-  position: relative;
-  display: flex;
-}
-
-/* Vertical Grid Lines within the track */
-.track-grid-line {
-  flex: 1;
-  border-left: 1px dashed var(--grid-line);
-}
-.track-grid-line:first-child { border-left: none; }
-
-/* Shift Block (Absolute Positioning) */
-.shift-block {
-  position: absolute;
-  top: 5px;
-  bottom: 5px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.time-label {
+  height: 60px; /* 1 hour = 60px */
+  text-align: right;
+  padding-right: 0.5rem;
   font-size: 0.75rem;
-  font-weight: 600;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  padding: 0 0.5rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  z-index: 5;
+  color: var(--text-secondary);
+  font-weight: 500;
+  position: relative;
+}
+.time-label span {
+  position: relative;
+  top: -8px; /* align text with grid line */
 }
 
-.shift-block-label {
+.day-columns-container {
+  display: flex;
+  flex: 1;
+}
+
+.day-column {
+  flex: 1;
+  min-width: 120px;
+  border-right: 1px solid var(--grid-line);
+  position: relative;
+  background: #ffffff;
+}
+.day-column:last-child {
+  border-right: none;
+}
+
+.hour-grid-line {
+  height: 60px;
+  border-bottom: 1px solid var(--grid-line);
+  box-sizing: border-box;
+}
+
+/* Vertical Shift Block */
+.shift-block-vertical {
+  position: absolute;
+  border-radius: 4px;
+  padding: 0.25rem;
+  font-size: 0.7rem;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-align: center;
   line-height: 1.2;
 }
 
-.shift-block-time {
-  font-size: 0.65rem;
-  font-weight: 400;
-  opacity: 0.9;
+.shift-intern-name {
+  font-weight: 700;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+.shift-block-name {
+  font-weight: 600;
 }
 
-/* Arrow indicators for overnight shifts extending past midnight */
-.shift-block.extends-left {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  border-left: 2px dashed rgba(0,0,0,0.2);
-}
-.shift-block.extends-right {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-  border-right: 2px dashed rgba(0,0,0,0.2);
-}
+/* Colors */
+.shift-color-blue { background: #dbeafe; color: #1e3a8a; }
+.shift-color-red { background: #fee2e2; color: #991b1b; }
+.shift-color-green { background: #dcfce7; color: #166534; }
+.shift-color-pink { background: #fce7f3; color: #9d174d; }
+.shift-color-grey { background: #f3f4f6; color: #374151; }
+.shift-color-white { background: #ffffff; color: #000000; border: 1px solid var(--border-color); }
 
-.shift-color-blue { background: #dbeafe; color: #1e3a8a; border: 1px solid #bfdbfe; }
-.shift-color-red { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-.shift-color-green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-.shift-color-pink { background: #fce7f3; color: #9d174d; border: 1px solid #fbcfe8; }
-.shift-color-grey { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
-
-/* Monthly Calendar (Kept from before) */
+/* Free Time Calendar */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -253,11 +258,10 @@ h1 {
   background: #ffffff;
   border-right: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
-  min-height: 120px;
+  min-height: 140px;
   padding: 0.5rem;
   display: flex;
   flex-direction: column;
-  position: relative;
 }
 
 .calendar-cell.out-of-month {
@@ -270,17 +274,22 @@ h1 {
   margin-bottom: 0.5rem;
 }
 
-.free-time-badge {
+.free-time-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: auto;
+}
+
+.free-time-slot {
   background: #dcfce7;
   color: #166534;
   border: 1px solid #86efac;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   padding: 0.25rem;
   border-radius: 4px;
   text-align: center;
   font-weight: 600;
-  margin-top: auto;
-  cursor: pointer;
 }
 
 .busy-badge {
@@ -289,38 +298,4 @@ h1 {
   text-align: center;
   margin-top: auto;
   font-weight: 500;
-}
-
-.free-hours-tooltip {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #ffffff;
-  border: 1px solid var(--border-color);
-  padding: 0.75rem;
-  border-radius: 4px;
-  width: max-content;
-  z-index: 20;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.calendar-cell:hover .free-hours-tooltip {
-  display: flex;
-}
-
-.tooltip-title {
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.25rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.25rem;
-}
-
-.tooltip-slot {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
 }

@@ -57,7 +57,9 @@ function isInternBusy(intern: Intern, dateStr: string, hour: number): boolean {
 function formatDateHeader(dateStr: string) {
   const parts = dateStr.split('-');
   const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+  const day = d.getDate();
+  return `${weekday} ${day}`;
 }
 
 function getShiftColorClass(shiftId: string) {
@@ -65,13 +67,14 @@ function getShiftColorClass(shiftId: string) {
   if (['duty', 'dutyPm', 'ongPm'].includes(shiftId)) return 'shift-color-red';
   if (['ongAm'].includes(shiftId)) return 'shift-color-pink';
   if (['ec', 'regioAm'].includes(shiftId)) return 'shift-color-green';
-  if (['off', 'from'].includes(shiftId)) return 'shift-color-grey';
+  if (['off', 'from'].includes(shiftId)) return 'shift-color-white';
   return 'shift-color-grey';
 }
 
-const TIMELINE_START = 6;
-const TIMELINE_END = 24;
+const TIMELINE_START = 6; // 6 AM
+const TIMELINE_END = 24;  // 12 AM (Midnight)
 const TIMELINE_HOURS = 18;
+const PIXELS_PER_HOUR = 60;
 
 function parseTime(timeStr: string) {
   const [h, m] = timeStr.split(':').map(Number);
@@ -79,22 +82,19 @@ function parseTime(timeStr: string) {
 }
 
 interface BlockProps {
-  left: number;
-  width: number;
+  topPx: number;
+  heightPx: number;
   label: string;
   timeLabel: string;
-  extendsLeft: boolean;
-  extendsRight: boolean;
   colorClass: string;
 }
 
-function getShiftBlocks(schedule: DaySchedule | undefined, prevSchedule: DaySchedule | undefined): BlockProps[] {
+function getShiftBlocksForDay(schedule: DaySchedule | undefined, prevSchedule: DaySchedule | undefined): BlockProps[] {
   const blocks: BlockProps[] = [];
   
-  // 1. Process Today's shift
   if (schedule) {
     const shift = shifts[schedule.shiftId];
-    if (shift) {
+    if (shift && !shift.isFree) {
       const start = parseTime(shift.startTime);
       const end = shift.endTime === '23:59' ? 24 : parseTime(shift.endTime);
       
@@ -103,12 +103,10 @@ function getShiftBlocks(schedule: DaySchedule | undefined, prevSchedule: DaySche
         const renderEnd = TIMELINE_END;
         if (renderStart < renderEnd) {
            blocks.push({
-             left: ((renderStart - TIMELINE_START) / TIMELINE_HOURS) * 100,
-             width: ((renderEnd - renderStart) / TIMELINE_HOURS) * 100,
+             topPx: (renderStart - TIMELINE_START) * PIXELS_PER_HOUR,
+             heightPx: (renderEnd - renderStart) * PIXELS_PER_HOUR,
              label: shift.name,
              timeLabel: `${shift.startTime}-${shift.endTime}`,
-             extendsLeft: start < TIMELINE_START,
-             extendsRight: true,
              colorClass: getShiftColorClass(schedule.shiftId)
            });
         }
@@ -118,12 +116,10 @@ function getShiftBlocks(schedule: DaySchedule | undefined, prevSchedule: DaySche
         
         if (renderStart < renderEnd) {
            blocks.push({
-             left: ((renderStart - TIMELINE_START) / TIMELINE_HOURS) * 100,
-             width: ((renderEnd - renderStart) / TIMELINE_HOURS) * 100,
+             topPx: (renderStart - TIMELINE_START) * PIXELS_PER_HOUR,
+             heightPx: (renderEnd - renderStart) * PIXELS_PER_HOUR,
              label: shift.name,
-             timeLabel: shift.isFree ? '' : `${shift.startTime}-${shift.endTime}`,
-             extendsLeft: start < TIMELINE_START,
-             extendsRight: end > TIMELINE_END,
+             timeLabel: `${shift.startTime}-${shift.endTime}`,
              colorClass: getShiftColorClass(schedule.shiftId)
            });
         }
@@ -131,25 +127,22 @@ function getShiftBlocks(schedule: DaySchedule | undefined, prevSchedule: DaySche
     }
   }
 
-  // 2. Process Yesterday's carry-over
   if (prevSchedule) {
     const prevShift = shifts[prevSchedule.shiftId];
-    if (prevShift) {
+    if (prevShift && !prevShift.isFree) {
       const pStart = parseTime(prevShift.startTime);
       const pEnd = prevShift.endTime === '23:59' ? 24 : parseTime(prevShift.endTime);
       
-      if (pStart > pEnd) { // It crossed midnight into TODAY
+      if (pStart > pEnd) { // Crossed midnight into TODAY
         const renderStart = TIMELINE_START;
         const renderEnd = Math.min(pEnd, TIMELINE_END);
         
         if (renderStart < renderEnd) {
            blocks.push({
-             left: 0,
-             width: ((renderEnd - renderStart) / TIMELINE_HOURS) * 100,
+             topPx: (renderStart - TIMELINE_START) * PIXELS_PER_HOUR,
+             heightPx: (renderEnd - renderStart) * PIXELS_PER_HOUR,
              label: prevShift.name,
              timeLabel: `${prevShift.startTime}-${prevShift.endTime}`,
-             extendsLeft: true,
-             extendsRight: false,
              colorClass: getShiftColorClass(prevSchedule.shiftId)
            });
         }
@@ -162,7 +155,9 @@ function getShiftBlocks(schedule: DaySchedule | undefined, prevSchedule: DaySche
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'freetime'>('dashboard');
+  const [selectedWeekStart, setSelectedWeekStart] = useState('2026-08-10');
 
+  const weekStarts = ['2026-08-10', '2026-08-17'];
   const wakingHours = Array.from({ length: 14 }, (_, i) => i + 8); // 8 AM to 9:59 PM
 
   const formatHour = (h: number) => {
@@ -172,82 +167,85 @@ export default function App() {
   };
 
   const renderDashboard = () => {
-    const allDates = [
-      ...generateWeekDates('2026-08-10'),
-      ...generateWeekDates('2026-08-17')
-    ];
-
+    const weekDates = generateWeekDates(selectedWeekStart);
     const axisHours = Array.from({ length: TIMELINE_HOURS }, (_, i) => TIMELINE_START + i);
+    const totalInterns = interns.length;
 
     return (
-      <div className="panel" style={{ padding: '2rem 1rem' }}>
-        <h2 style={{textAlign: 'center', marginBottom: '0.5rem', color: 'var(--text-primary)'}}>
-          Daily Schedule (Aug 10 - Aug 23)
-        </h2>
-        <p className="subtitle" style={{textAlign: 'center', marginBottom: '2rem'}}>
-          Scroll down to view daily schedules. The timeline runs from 6:00 AM to Midnight.
-        </p>
+      <div className="panel" style={{ padding: '1rem' }}>
+        <div className="date-selector">
+          <label>Select Week: </label>
+          <select 
+            value={selectedWeekStart} 
+            onChange={(e) => setSelectedWeekStart(e.target.value)}
+          >
+            {weekStarts.map(ws => {
+              const parts = ws.split('-');
+              const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+              return <option key={ws} value={ws}>Week of {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</option>;
+            })}
+          </select>
+        </div>
 
-        {allDates.map(dateStr => (
-          <div key={dateStr} className="day-block">
-            <div className="day-header">{formatDateHeader(dateStr)}</div>
-            
-            <div className="timeline-container">
-              <div className="timeline-wrapper">
-                
-                {/* Hourly Axis */}
-                <div className="timeline-axis">
-                  {axisHours.map(hour => (
-                    <div key={hour} className="axis-hour">
-                      {hour === 12 ? '12p' : hour > 12 ? `${hour - 12}p` : `${hour}a`}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Intern Tracks */}
-                {interns.map((intern, idx) => {
-                  const schedule = intern.schedules.find(s => s.date === dateStr);
-                  const prevSchedule = intern.schedules.find(s => s.date === getYesterday(dateStr));
-                  const blocks = getShiftBlocks(schedule, prevSchedule);
-
-                  return (
-                    <div key={intern.id} className="intern-track">
-                      <div className="intern-track-name">{idx + 1}. {intern.name.split(',')[0]}</div>
-                      <div className="intern-track-timeline">
-                        {/* Grid lines */}
-                        {axisHours.map(hour => (
-                          <div key={hour} className="track-grid-line"></div>
-                        ))}
-                        
-                        {/* Shift Blocks */}
-                        {blocks.map((block, bIdx) => (
-                          <div 
-                            key={bIdx}
-                            className={`shift-block ${block.colorClass} ${block.extendsLeft ? 'extends-left' : ''} ${block.extendsRight ? 'extends-right' : ''}`}
-                            style={{ left: `${block.left}%`, width: `${block.width}%` }}
-                          >
-                            <div className="shift-block-label">
-                              <span>{block.label}</span>
-                              {block.timeLabel && <span className="shift-block-time">{block.timeLabel}</span>}
-                            </div>
-                          </div>
-                        ))}
-
-                        {/* No Data State */}
-                        {blocks.length === 0 && schedule === undefined && (
-                          <div style={{ position: 'absolute', left: '2rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                            {intern.id === 'andrieux' ? 'No Data' : ''}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-
+        <div className="week-calendar-container">
+          <div className="week-calendar-header">
+            <div className="time-axis-spacer"></div>
+            {weekDates.map(date => (
+              <div key={date} className="day-column-header">
+                {formatDateHeader(date)}
               </div>
+            ))}
+          </div>
+          
+          <div className="week-calendar-body">
+            <div className="time-axis">
+              {axisHours.map(hour => (
+                <div key={hour} className="time-label">
+                  <span>{hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="day-columns-container">
+              {weekDates.map(dateStr => (
+                <div key={dateStr} className="day-column">
+                  {/* Grid Lines */}
+                  {axisHours.map(hour => (
+                    <div key={hour} className="hour-grid-line"></div>
+                  ))}
+
+                  {/* Shift Blocks for this day */}
+                  {interns.map((intern, internIdx) => {
+                    const schedule = intern.schedules.find(s => s.date === dateStr);
+                    const prevSchedule = intern.schedules.find(s => s.date === getYesterday(dateStr));
+                    const blocks = getShiftBlocksForDay(schedule, prevSchedule);
+
+                    const widthPct = 100 / totalInterns;
+                    const leftPct = internIdx * widthPct;
+                    const initials = intern.name.split(',')[0].substring(0, 3); // e.g. ABA
+
+                    return blocks.map((block, bIdx) => (
+                      <div 
+                        key={`${intern.id}-${bIdx}`}
+                        className={`shift-block-vertical ${block.colorClass}`}
+                        style={{
+                          top: `${block.topPx}px`,
+                          height: `${block.heightPx}px`,
+                          left: `${leftPct}%`,
+                          width: `${widthPct}%`
+                        }}
+                        title={`${intern.name}: ${block.label} (${block.timeLabel})`}
+                      >
+                        <span className="shift-intern-name">{internIdx + 1}. {initials}</span>
+                        {block.heightPx >= 45 && <span className="shift-block-name">{block.label}</span>}
+                      </div>
+                    ));
+                  })}
+                </div>
+              ))}
             </div>
           </div>
-        ))}
+        </div>
       </div>
     );
   };
@@ -289,17 +287,13 @@ export default function App() {
         <div key={dateStr} className="calendar-cell">
           <div className="calendar-date">{day}</div>
           {commonFreeHours.length > 0 ? (
-            <>
-              <div className="free-time-badge">Free Time</div>
-              <div className="free-hours-tooltip">
-                <div className="tooltip-title">Available Slots:</div>
-                {formattedSlots.map((slot, idx) => (
-                  <span key={idx} className="tooltip-slot">{slot}</span>
-                ))}
-              </div>
-            </>
+            <div className="free-time-container">
+              {formattedSlots.map((slot, idx) => (
+                <div key={idx} className="free-time-slot">{slot}</div>
+              ))}
+            </div>
           ) : (
-            <div className="busy-badge">Busy</div>
+            <div className="busy-badge">No Mutual Free Time</div>
           )}
         </div>
       );
@@ -309,7 +303,7 @@ export default function App() {
       <div className="panel">
         <h2 style={{textAlign: 'center', marginBottom: '0.5rem', color: 'var(--text-primary)'}}>August 2026</h2>
         <p className="subtitle" style={{textAlign: 'center', marginBottom: '1.5rem'}}>
-          Showing overlapping free time during waking hours (8:00 AM - 10:00 PM). Hover over green days to see exact times.
+          Showing overlapping free time during waking hours (8:00 AM - 10:00 PM).
         </p>
         <div className="calendar-grid">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -333,7 +327,7 @@ export default function App() {
           className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
           onClick={() => setActiveTab('dashboard')}
         >
-          Daily Hourly Timeline
+          Google Calendar View
         </button>
         <button 
           className={`tab-btn ${activeTab === 'freetime' ? 'active' : ''}`}
