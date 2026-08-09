@@ -169,17 +169,19 @@ h1 {
 /* Shift Colors (Pastel theme matching spreadsheet) */
 .shift-cell {
   font-weight: 600;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  min-height: 60px;
+  text-align: center;
+  vertical-align: middle;
+  height: 60px;
+}
+
+.shift-cell span {
+  display: block;
 }
 
 .shift-time {
   font-size: 0.75rem;
   font-weight: 400;
+  margin-top: 0.25rem;
 }
 
 .shift-color-blue { background: #dbeafe; color: #1e3a8a; }
