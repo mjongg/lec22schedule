@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { interns, shifts, type Intern } from './data/schedules';
+import { interns, shifts, type Intern, type DaySchedule } from './data/schedules';
 
 // Helper to get yesterday's date safely
 function getYesterday(dateStr: string) {
@@ -21,7 +21,7 @@ function generateWeekDates(startDateStr: string) {
   return dates;
 }
 
-// Check if an intern is busy at a specific hour on a specific date
+// Check if an intern is busy at a specific hour on a specific date (for Monthly calendar)
 function isInternBusy(intern: Intern, dateStr: string, hour: number): boolean {
   if (intern.schedules.length === 0) return false;
   
@@ -57,23 +57,107 @@ function isInternBusy(intern: Intern, dateStr: string, hour: number): boolean {
 function formatDateHeader(dateStr: string) {
   const parts = dateStr.split('-');
   const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-  const monthDay = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-  return (
-    <>
-      <div>{monthDay}</div>
-      <div>{weekday}</div>
-    </>
-  );
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
 function getShiftColorClass(shiftId: string) {
   if (['pre', 'or', 'opd', 'dutyAmOpd'].includes(shiftId)) return 'shift-color-blue';
   if (['duty', 'dutyPm', 'ongPm'].includes(shiftId)) return 'shift-color-red';
-  if (['ongAm'].includes(shiftId)) return 'shift-color-pink'; // Custom colors for Ong's AM shifts
+  if (['ongAm'].includes(shiftId)) return 'shift-color-pink';
   if (['ec', 'regioAm'].includes(shiftId)) return 'shift-color-green';
-  if (['off', 'from'].includes(shiftId)) return 'shift-color-white';
+  if (['off', 'from'].includes(shiftId)) return 'shift-color-grey';
   return 'shift-color-grey';
+}
+
+const TIMELINE_START = 6;
+const TIMELINE_END = 24;
+const TIMELINE_HOURS = 18;
+
+function parseTime(timeStr: string) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h + (m || 0) / 60;
+}
+
+interface BlockProps {
+  left: number;
+  width: number;
+  label: string;
+  timeLabel: string;
+  extendsLeft: boolean;
+  extendsRight: boolean;
+  colorClass: string;
+}
+
+function getShiftBlocks(schedule: DaySchedule | undefined, prevSchedule: DaySchedule | undefined): BlockProps[] {
+  const blocks: BlockProps[] = [];
+  
+  // 1. Process Today's shift
+  if (schedule) {
+    const shift = shifts[schedule.shiftId];
+    if (shift) {
+      const start = parseTime(shift.startTime);
+      const end = shift.endTime === '23:59' ? 24 : parseTime(shift.endTime);
+      
+      if (start > end) { // Crosses midnight
+        const renderStart = Math.max(start, TIMELINE_START);
+        const renderEnd = TIMELINE_END;
+        if (renderStart < renderEnd) {
+           blocks.push({
+             left: ((renderStart - TIMELINE_START) / TIMELINE_HOURS) * 100,
+             width: ((renderEnd - renderStart) / TIMELINE_HOURS) * 100,
+             label: shift.name,
+             timeLabel: `${shift.startTime}-${shift.endTime}`,
+             extendsLeft: start < TIMELINE_START,
+             extendsRight: true,
+             colorClass: getShiftColorClass(schedule.shiftId)
+           });
+        }
+      } else { // Normal shift
+        const renderStart = Math.max(start, TIMELINE_START);
+        const renderEnd = Math.min(end, TIMELINE_END);
+        
+        if (renderStart < renderEnd) {
+           blocks.push({
+             left: ((renderStart - TIMELINE_START) / TIMELINE_HOURS) * 100,
+             width: ((renderEnd - renderStart) / TIMELINE_HOURS) * 100,
+             label: shift.name,
+             timeLabel: shift.isFree ? '' : `${shift.startTime}-${shift.endTime}`,
+             extendsLeft: start < TIMELINE_START,
+             extendsRight: end > TIMELINE_END,
+             colorClass: getShiftColorClass(schedule.shiftId)
+           });
+        }
+      }
+    }
+  }
+
+  // 2. Process Yesterday's carry-over
+  if (prevSchedule) {
+    const prevShift = shifts[prevSchedule.shiftId];
+    if (prevShift) {
+      const pStart = parseTime(prevShift.startTime);
+      const pEnd = prevShift.endTime === '23:59' ? 24 : parseTime(prevShift.endTime);
+      
+      if (pStart > pEnd) { // It crossed midnight into TODAY
+        const renderStart = TIMELINE_START;
+        const renderEnd = Math.min(pEnd, TIMELINE_END);
+        
+        if (renderStart < renderEnd) {
+           blocks.push({
+             left: 0,
+             width: ((renderEnd - renderStart) / TIMELINE_HOURS) * 100,
+             label: prevShift.name,
+             timeLabel: `${prevShift.startTime}-${prevShift.endTime}`,
+             extendsLeft: true,
+             extendsRight: false,
+             colorClass: getShiftColorClass(prevSchedule.shiftId)
+           });
+        }
+      }
+    }
+  }
+
+  return blocks;
 }
 
 export default function App() {
@@ -88,59 +172,89 @@ export default function App() {
   };
 
   const renderDashboard = () => {
-    // Show both weeks simultaneously (14 days)
-    const weekDates = [
+    const allDates = [
       ...generateWeekDates('2026-08-10'),
       ...generateWeekDates('2026-08-17')
     ];
 
+    const axisHours = Array.from({ length: TIMELINE_HOURS }, (_, i) => TIMELINE_START + i);
+
     return (
-      <div className="panel">
-        <h2 style={{textAlign: 'center', marginBottom: '1.5rem', color: 'var(--text-primary)'}}>Schedule (Aug 10 - Aug 23)</h2>
-        <div className="table-container">
-          <table className="schedule-table">
-            <thead>
-              <tr>
-                <th style={{ width: '250px' }} className="intern-name">Intern</th>
-                {weekDates.map(date => (
-                  <th key={date}>{formatDateHeader(date)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {interns.map((intern, index) => (
-                <tr key={intern.id}>
-                  <td className="intern-name">{index + 1}. {intern.name}</td>
-                  {weekDates.map(date => {
-                    const schedule = intern.schedules.find(s => s.date === date);
-                    const shift = schedule ? shifts[schedule.shiftId] : null;
-                    const colorClass = schedule ? getShiftColorClass(schedule.shiftId) : 'shift-color-white';
-                    
-                    return (
-                      <td key={date} className={`shift-cell ${colorClass}`}>
-                        {shift ? (
-                          <>
-                            <span>{shift.name}</span>
-                            {!shift.isFree && <span className="shift-time">{shift.startTime}-{shift.endTime}</span>}
-                          </>
-                        ) : (
-                          <span style={{color: 'var(--text-secondary)'}}>{intern.id === 'andrieux' ? 'No Data' : 'OFF'}</span>
+      <div className="panel" style={{ padding: '2rem 1rem' }}>
+        <h2 style={{textAlign: 'center', marginBottom: '0.5rem', color: 'var(--text-primary)'}}>
+          Daily Schedule (Aug 10 - Aug 23)
+        </h2>
+        <p className="subtitle" style={{textAlign: 'center', marginBottom: '2rem'}}>
+          Scroll down to view daily schedules. The timeline runs from 6:00 AM to Midnight.
+        </p>
+
+        {allDates.map(dateStr => (
+          <div key={dateStr} className="day-block">
+            <div className="day-header">{formatDateHeader(dateStr)}</div>
+            
+            <div className="timeline-container">
+              <div className="timeline-wrapper">
+                
+                {/* Hourly Axis */}
+                <div className="timeline-axis">
+                  {axisHours.map(hour => (
+                    <div key={hour} className="axis-hour">
+                      {hour === 12 ? '12p' : hour > 12 ? `${hour - 12}p` : `${hour}a`}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Intern Tracks */}
+                {interns.map((intern, idx) => {
+                  const schedule = intern.schedules.find(s => s.date === dateStr);
+                  const prevSchedule = intern.schedules.find(s => s.date === getYesterday(dateStr));
+                  const blocks = getShiftBlocks(schedule, prevSchedule);
+
+                  return (
+                    <div key={intern.id} className="intern-track">
+                      <div className="intern-track-name">{idx + 1}. {intern.name.split(',')[0]}</div>
+                      <div className="intern-track-timeline">
+                        {/* Grid lines */}
+                        {axisHours.map(hour => (
+                          <div key={hour} className="track-grid-line"></div>
+                        ))}
+                        
+                        {/* Shift Blocks */}
+                        {blocks.map((block, bIdx) => (
+                          <div 
+                            key={bIdx}
+                            className={`shift-block ${block.colorClass} ${block.extendsLeft ? 'extends-left' : ''} ${block.extendsRight ? 'extends-right' : ''}`}
+                            style={{ left: `${block.left}%`, width: `${block.width}%` }}
+                          >
+                            <div className="shift-block-label">
+                              <span>{block.label}</span>
+                              {block.timeLabel && <span className="shift-block-time">{block.timeLabel}</span>}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* No Data State */}
+                        {blocks.length === 0 && schedule === undefined && (
+                          <div style={{ position: 'absolute', left: '2rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                            {intern.id === 'andrieux' ? 'No Data' : ''}
+                          </div>
                         )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   };
 
   const renderFreeTimeCalendar = () => {
     const daysInMonth = 31;
-    const firstDayIndex = 6; // Aug 1, 2026 is a Saturday (index 6 where Sun=0)
+    const firstDayIndex = 6;
     const calendarCells = [];
 
     for (let i = 0; i < firstDayIndex; i++) {
@@ -219,7 +333,7 @@ export default function App() {
           className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
           onClick={() => setActiveTab('dashboard')}
         >
-          Weekly Dashboard
+          Daily Hourly Timeline
         </button>
         <button 
           className={`tab-btn ${activeTab === 'freetime' ? 'active' : ''}`}

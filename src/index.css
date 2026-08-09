@@ -11,6 +11,7 @@
   --accent-hover: #1d4ed8;
   --success: #16a34a;
   --danger: #dc2626;
+  --grid-line: #e2e8f0;
 }
 
 * {
@@ -86,113 +87,151 @@ h1 {
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
 }
 
-/* Date Selector */
-.date-selector {
+/* Daily Timeline Layout */
+.day-block {
+  margin-bottom: 3rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.day-header {
+  background: var(--table-header-bg);
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.timeline-container {
   display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  flex-direction: column;
+  overflow-x: auto;
 }
 
-.date-selector label {
+.timeline-wrapper {
+  min-width: 1000px;
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-axis {
+  display: flex;
+  border-bottom: 2px solid var(--border-color);
+  padding-left: 250px; /* Space for intern names */
+  position: relative;
+  background: #f8fafc;
+}
+
+.axis-hour {
+  flex: 1;
+  text-align: center;
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
+  padding: 0.5rem 0;
+  border-left: 1px dashed var(--grid-line);
+}
+.axis-hour:first-child { border-left: none; }
+
+.intern-track {
+  display: flex;
+  border-bottom: 1px solid var(--grid-line);
+  position: relative;
+  height: 50px;
+  background: #fff;
 }
 
-.date-selector select {
-  background: #ffffff;
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 1rem;
-  outline: none;
-  cursor: pointer;
+.intern-track:last-child {
+  border-bottom: none;
 }
 
-/* Weekly Table */
-.table-container {
-  overflow-x: auto;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.schedule-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  text-align: center;
-  min-width: 1400px;
-  background: var(--table-bg);
-}
-
-.schedule-table th,
-.schedule-table td {
-  border-right: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0.75rem 0.5rem;
+.intern-track-name {
+  width: 250px;
+  flex-shrink: 0;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
   font-size: 0.9rem;
-}
-
-.schedule-table th {
-  background: var(--table-header-bg);
-  font-weight: 600;
   color: var(--text-primary);
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  border-top: 1px solid var(--border-color);
-}
-
-.schedule-table .intern-name {
-  text-align: left;
-  font-weight: 600;
-  background: var(--table-header-bg);
-  color: var(--text-primary);
-  white-space: nowrap;
+  background: #f8fafc;
+  border-right: 2px solid var(--border-color);
   position: sticky;
   left: 0;
   z-index: 10;
-  border-left: 1px solid var(--border-color);
 }
 
-.schedule-table th.intern-name {
-  z-index: 15;
+.intern-track-timeline {
+  flex: 1;
+  position: relative;
+  display: flex;
 }
 
-/* Shift Colors (Pastel theme matching spreadsheet) */
-.shift-cell {
-  font-weight: 600;
-  text-align: center;
-  vertical-align: middle;
-  height: 60px;
+/* Vertical Grid Lines within the track */
+.track-grid-line {
+  flex: 1;
+  border-left: 1px dashed var(--grid-line);
 }
+.track-grid-line:first-child { border-left: none; }
 
-.shift-cell span {
-  display: block;
-}
-
-.shift-time {
+/* Shift Block (Absolute Positioning) */
+.shift-block {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.75rem;
-  font-weight: 400;
-  margin-top: 0.25rem;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 0.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  z-index: 5;
 }
 
-.shift-color-blue { background: #dbeafe; color: #1e3a8a; }
-.shift-color-red { background: #fee2e2; color: #991b1b; }
-.shift-color-green { background: #dcfce7; color: #166534; }
-.shift-color-pink { background: #fce7f3; color: #9d174d; }
-.shift-color-grey { background: #f3f4f6; color: #374151; }
-.shift-color-white { background: #ffffff; color: #000000; }
-.shift-color-purple { background: #f3e8ff; color: #6b21a8; }
+.shift-block-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
+}
 
-/* Monthly Calendar */
+.shift-block-time {
+  font-size: 0.65rem;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+/* Arrow indicators for overnight shifts extending past midnight */
+.shift-block.extends-left {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 2px dashed rgba(0,0,0,0.2);
+}
+.shift-block.extends-right {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: 2px dashed rgba(0,0,0,0.2);
+}
+
+.shift-color-blue { background: #dbeafe; color: #1e3a8a; border: 1px solid #bfdbfe; }
+.shift-color-red { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.shift-color-green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.shift-color-pink { background: #fce7f3; color: #9d174d; border: 1px solid #fbcfe8; }
+.shift-color-grey { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+
+/* Monthly Calendar (Kept from before) */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
