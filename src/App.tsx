@@ -1,388 +1,393 @@
 import { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, 
-  CalendarDays, 
-  BarChart3, 
-  Settings, 
-  Sun, 
-  Moon, 
-  Search, 
+import {
+  LayoutDashboard,
+  CalendarDays,
+  BarChart3,
+  Flame,
+  Settings,
+  Sun,
+  Moon,
   Bell,
-  ChevronLeft,
-  ChevronRight,
   Clock,
-  User,
-  Activity
+  Activity,
+  Users,
+  Coffee,
 } from 'lucide-react';
-import { interns, shifts, type Intern, type DaySchedule } from './data/schedules';
+import { interns, shifts, type Intern } from './data/schedules';
 
-// Utility Dates
-function getYesterday(dateStr: string) {
-  const parts = dateStr.split('-');
-  const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-  d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+/* ── helpers ── */
 
 function generateWeekDates(startDateStr: string) {
-  const dates = [];
-  const parts = startDateStr.split('-');
-  const start = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  const dates: string[] = [];
+  const [y, m, d] = startDateStr.split('-').map(Number);
+  const start = new Date(y, m - 1, d);
   for (let i = 0; i < 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    const dt = new Date(start);
+    dt.setDate(start.getDate() + i);
+    dates.push(
+      `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+    );
   }
   return dates;
 }
 
-const TIMELINE_START = 6;
-const TIMELINE_END = 24;
-const TIMELINE_HOURS = 18;
-const PIXELS_PER_HOUR = 60;
-
-function parseTime(timeStr: string) {
-  const [h, m] = timeStr.split(':').map(Number);
-  return h + (m || 0) / 60;
+function getYesterday(dateStr: string) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - 1);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
 }
 
-function getShiftPillStyle(shiftId: string) {
+function isInternBusyAtHour(intern: Intern, dateStr: string, hour: number): boolean {
+  // Check today's schedule
+  const today = intern.schedules.find((s) => s.date === dateStr);
+  if (today) {
+    const shift = shifts[today.shiftId];
+    if (shift && !shift.isFree) {
+      const sH = parseInt(shift.startTime.split(':')[0]);
+      const eH = parseInt(shift.endTime.split(':')[0]);
+      if (sH < eH && hour >= sH && hour < eH) return true;
+      if (sH > eH && hour >= sH) return true;
+    }
+  }
+  // Check yesterday's overnight carry‑over
+  const yest = intern.schedules.find((s) => s.date === getYesterday(dateStr));
+  if (yest) {
+    const shift = shifts[yest.shiftId];
+    if (shift && !shift.isFree) {
+      const sH = parseInt(shift.startTime.split(':')[0]);
+      const eH = parseInt(shift.endTime.split(':')[0]);
+      if (sH > eH && hour < eH) return true;
+    }
+  }
+  return false;
+}
+
+function pillColor(shiftId: string) {
   if (['pre', 'or', 'opd', 'dutyAmOpd'].includes(shiftId)) return 'pill-blue';
   if (['duty', 'dutyPm', 'ongPm'].includes(shiftId)) return 'pill-pink';
   if (['ongAm'].includes(shiftId)) return 'pill-purple';
   if (['ec', 'regioAm'].includes(shiftId)) return 'pill-green';
-  if (['off', 'from'].includes(shiftId)) return 'pill-gray';
   return 'pill-gray';
 }
 
-interface BlockProps {
-  topPx: number;
-  heightPx: number;
-  label: string;
-  timeLabel: string;
-  colorClass: string;
+function densityClass(busy: number) {
+  if (busy === 0) return 'density-0';
+  if (busy <= 2) return 'density-1';
+  if (busy <= 4) return 'density-2';
+  if (busy <= 6) return 'density-3';
+  return 'density-4';
 }
 
-function getShiftBlocksForDay(schedule: DaySchedule | undefined, prevSchedule: DaySchedule | undefined): BlockProps[] {
-  const blocks: BlockProps[] = [];
-  
-  if (schedule) {
-    const shift = shifts[schedule.shiftId];
-    if (shift && !shift.isFree) {
-      const start = parseTime(shift.startTime);
-      const end = shift.endTime === '23:59' ? 24 : parseTime(shift.endTime);
-      
-      if (start > end) { // Crosses midnight
-        const renderStart = Math.max(start, TIMELINE_START);
-        const renderEnd = TIMELINE_END;
-        if (renderStart < renderEnd) {
-           blocks.push({
-             topPx: (renderStart - TIMELINE_START) * PIXELS_PER_HOUR,
-             heightPx: (renderEnd - renderStart) * PIXELS_PER_HOUR,
-             label: shift.name,
-             timeLabel: `${shift.startTime}-${shift.endTime}`,
-             colorClass: getShiftPillStyle(schedule.shiftId)
-           });
-        }
-      } else { // Normal shift
-        const renderStart = Math.max(start, TIMELINE_START);
-        const renderEnd = Math.min(end, TIMELINE_END);
-        
-        if (renderStart < renderEnd) {
-           blocks.push({
-             topPx: (renderStart - TIMELINE_START) * PIXELS_PER_HOUR,
-             heightPx: (renderEnd - renderStart) * PIXELS_PER_HOUR,
-             label: shift.name,
-             timeLabel: `${shift.startTime}-${shift.endTime}`,
-             colorClass: getShiftPillStyle(schedule.shiftId)
-           });
-        }
-      }
-    }
-  }
-
-  if (prevSchedule) {
-    const prevShift = shifts[prevSchedule.shiftId];
-    if (prevShift && !prevShift.isFree) {
-      const pStart = parseTime(prevShift.startTime);
-      const pEnd = prevShift.endTime === '23:59' ? 24 : parseTime(prevShift.endTime);
-      
-      if (pStart > pEnd) { // Crossed midnight into TODAY
-        const renderStart = TIMELINE_START;
-        const renderEnd = Math.min(pEnd, TIMELINE_END);
-        
-        if (renderStart < renderEnd) {
-           blocks.push({
-             topPx: (renderStart - TIMELINE_START) * PIXELS_PER_HOUR,
-             heightPx: (renderEnd - renderStart) * PIXELS_PER_HOUR,
-             label: prevShift.name,
-             timeLabel: `${prevShift.startTime}-${prevShift.endTime}`,
-             colorClass: getShiftPillStyle(prevSchedule.shiftId)
-           });
-        }
-      }
-    }
-  }
-
-  return blocks;
+function densityLabel(busy: number, total: number) {
+  if (busy === 0) return '✓';
+  return `${busy}/${total}`;
 }
+
+function fmtHour(h: number) {
+  if (h === 0 || h === 24) return '12 AM';
+  if (h === 12) return '12 PM';
+  return h > 12 ? `${h - 12} PM` : `${h} AM`;
+}
+
+function fmtDayHeader(dateStr: string) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  const weekday = dt.toLocaleDateString('en-US', { weekday: 'short' });
+  return { weekday, day: d };
+}
+
+const ALL_14_DATES = [...generateWeekDates('2026-08-10'), ...generateWeekDates('2026-08-17')];
+const HEATMAP_HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6 AM to 11 PM
+const WAKING_HOURS = Array.from({ length: 14 }, (_, i) => i + 8); // 8 AM to 9 PM
+
+/* ── component ── */
+
+type View = 'dashboard' | 'table' | 'heatmap' | 'analytics';
 
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [activeView, setActiveView] = useState<'dashboard' | 'calendar' | 'analytics'>('calendar');
-  const [currentUserId, setCurrentUserId] = useState<string>('ong'); // Default Bea
-  const [selectedWeek, setSelectedWeek] = useState('2026-08-10');
-  
-  // By default, select current user and maybe one other to show uncompressed UI
-  const [selectedInterns, setSelectedInterns] = useState<string[]>(['ong', 'abangan', 'andrieux', 'regio']);
+  const [view, setView] = useState<View>('table');
+  const [userId, setUserId] = useState('ong');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(t => t === 'light' ? 'dark' : 'light');
-  };
+  const user = interns.find((i) => i.id === userId)!;
 
-  const toggleInternFilter = (id: string) => {
-    setSelectedInterns(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
-
-  const weekStarts = ['2026-08-10', '2026-08-17'];
-  const weekDates = generateWeekDates(selectedWeek);
-  const axisHours = Array.from({ length: TIMELINE_HOURS }, (_, i) => TIMELINE_START + i);
-  const activeInterns = interns.filter(i => selectedInterns.includes(i.id));
-
-  const currentUser = interns.find(i => i.id === currentUserId);
-
-  const calculateTotalDuties = (intern: Intern) => {
-    return intern.schedules.filter(s => ['duty', 'dutyAmOpd', 'dutyPm'].includes(s.shiftId)).length;
-  };
-
-  // --- Views ---
-
+  /* ── Dashboard ── */
   const renderDashboard = () => {
-    if (!currentUser) return null;
-    const dutyCount = calculateTotalDuties(currentUser);
-    const freeCount = currentUser.schedules.filter(s => ['off', 'from'].includes(s.shiftId)).length;
-    
+    const duties = user.schedules.filter((s) =>
+      ['duty', 'dutyAmOpd', 'dutyPm', 'ongAm', 'ongPm'].includes(s.shiftId)
+    ).length;
+    const freeDays = user.schedules.filter((s) => ['off', 'from'].includes(s.shiftId)).length;
+    const nextShift = user.schedules[0];
+
+    // Find next mutual free lunch slot
+    const freeSlots: string[] = [];
+    for (const dateStr of ALL_14_DATES) {
+      const freeHrs = WAKING_HOURS.filter((h) => interns.every((i) => !isInternBusyAtHour(i, dateStr, h)));
+      if (freeHrs.length > 0) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const dt = new Date(y, m - 1, d);
+        const label = dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        // Build contiguous ranges
+        let start = freeHrs[0];
+        let prev = start;
+        for (let i = 1; i <= freeHrs.length; i++) {
+          if (freeHrs[i] === prev + 1) { prev = freeHrs[i]; continue; }
+          freeSlots.push(`${label}: ${fmtHour(start)} – ${fmtHour(prev + 1)}`);
+          start = freeHrs[i];
+          prev = start;
+        }
+      }
+      if (freeSlots.length >= 5) break;
+    }
+
     return (
       <div className="content-area">
-        <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 600 }}>Welcome back, {currentUser.name.split(',')[0]}!</h2>
-        <p className="subtitle" style={{ marginBottom: '2rem' }}>Here is the information designed for your accurate insights.</p>
+        <h2 className="page-heading">Welcome back, {user.name.split(',')[0]}!</h2>
+        <p className="page-sub">Here's your rotation overview for August 2026.</p>
 
         <div className="dashboard-grid">
           <div className="card stat-card">
             <div className="stat-header">
-              <span>Total Duties (Aug)</span>
-              <Activity className="stat-icon" size={20} />
+              <span>Total Shifts</span>
+              <div className="stat-icon"><Activity size={18} /></div>
             </div>
-            <div className="stat-value">{dutyCount}</div>
-            <div className="stat-desc">shifts logged this rotation</div>
+            <div className="stat-value">{duties}</div>
+            <div className="stat-desc">duty/on-call shifts this rotation</div>
           </div>
-          
+
           <div className="card stat-card">
             <div className="stat-header">
-              <span>Free Days</span>
-              <Sun className="stat-icon" size={20} />
+              <span>Days Off</span>
+              <div className="stat-icon"><Sun size={18} /></div>
             </div>
-            <div className="stat-value">{freeCount}</div>
-            <div className="stat-desc">OFF or FROM shifts</div>
+            <div className="stat-value">{freeDays}</div>
+            <div className="stat-desc">OFF or FROM days</div>
           </div>
 
           <div className="card stat-card">
             <div className="stat-header">
               <span>Next Shift</span>
-              <Clock className="stat-icon" size={20} />
+              <div className="stat-icon"><Clock size={18} /></div>
             </div>
-            <div className="stat-value" style={{fontSize: '1.5rem', marginTop: '0.5rem'}}>
-              {currentUser.schedules[0]?.shiftId ? shifts[currentUser.schedules[0].shiftId].name : 'Unknown'}
+            <div className="stat-value" style={{ fontSize: '1.4rem' }}>
+              {nextShift ? shifts[nextShift.shiftId]?.name : '—'}
             </div>
-            <div className="stat-desc">Tomorrow at 07:00 AM</div>
+            <div className="stat-desc">
+              {nextShift ? `${new Date(nextShift.date + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}` : ''}
+            </div>
+          </div>
+
+          <div className="card stat-card">
+            <div className="stat-header">
+              <span>Team Size</span>
+              <div className="stat-icon"><Users size={18} /></div>
+            </div>
+            <div className="stat-value">{interns.length}</div>
+            <div className="stat-desc">interns in LEC 22</div>
           </div>
         </div>
 
-        <div className="card" style={{ flex: 1 }}>
-          <h3 style={{ marginBottom: '1rem', fontWeight: 600 }}>Recent Updates</h3>
-          <p className="subtitle">Your personalized schedule overview will appear here.</p>
+        <div className="card" style={{ marginTop: '0.5rem' }}>
+          <h3 className="section-title"><Coffee size={16} /> Upcoming Mutual Free Slots</h3>
+          <p className="section-desc">Time windows where <strong>everyone</strong> in LEC 22 is free (8 AM – 10 PM)</p>
+          <div className="free-slots-list">
+            {freeSlots.length > 0 ? (
+              freeSlots.map((slot, i) => (
+                <div key={i} className="free-slot-badge">{slot}</div>
+              ))
+            ) : (
+              <p className="text-muted">No mutual free slots found in the next 14 days.</p>
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
-  const renderCalendar = () => (
-    <div className="content-area" style={{ paddingBottom: '0' }}>
-      <div className="calendar-view-layout">
-        
-        {/* Left Sidebar Filter (Peg 1 & 2 Style) */}
-        <div className="calendar-sidebar">
-          <div className="card filter-card">
-            <h3 className="filter-title">My Calendar</h3>
-            <div className="person-filter-list">
-              <label className="person-filter-item">
-                <input 
-                  type="checkbox" 
-                  checked={selectedInterns.includes(currentUserId)}
-                  onChange={() => toggleInternFilter(currentUserId)}
-                />
-                <span className="person-filter-label">My Schedule</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="card filter-card" style={{ flex: 1 }}>
-            <h3 className="filter-title">Team Members</h3>
-            <div className="person-filter-list">
-              {interns.filter(i => i.id !== currentUserId).map(intern => (
-                <label key={intern.id} className="person-filter-item">
-                  <input 
-                    type="checkbox" 
-                    checked={selectedInterns.includes(intern.id)}
-                    onChange={() => toggleInternFilter(intern.id)}
-                  />
-                  <span className="person-filter-label">{intern.name.split(',')[0]}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Main Weekly Calendar Grid (Peg 3 Style) */}
-        <div className="calendar-main">
-          <div className="calendar-nav">
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>
-              {new Date(selectedWeek).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </h2>
-            <div className="nav-arrows">
-              <button 
-                className="arrow-btn" 
-                onClick={() => setSelectedWeek(weekStarts[0])}
-                title="Week 1"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button className="today-btn" onClick={() => setSelectedWeek(weekStarts[0])}>
-                Week 1
-              </button>
-              <button 
-                className="arrow-btn" 
-                onClick={() => setSelectedWeek(weekStarts[1])}
-                title="Week 2"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          </div>
-
-          <div className="week-header">
-            <div className="time-spacer"></div>
-            {weekDates.map(dateStr => {
-              const d = new Date(dateStr);
-              return (
-                <div key={dateStr} className="day-header">
-                  <div className="day-header-day">{d.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                  <div className="day-header-date">{d.getDate()}</div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="week-body">
-            <div className="time-axis">
-              {axisHours.map(hour => (
-                <div key={hour} className="time-slot">
-                  <span>{hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="day-columns">
-              {weekDates.map(dateStr => (
-                <div key={dateStr} className="day-col">
-                  {/* Grid Lines */}
-                  {axisHours.map(hour => (
-                    <div key={hour} className="grid-line"></div>
-                  ))}
-
-                  {/* Render Shift Pills for filtered interns */}
-                  {activeInterns.map((intern, idx) => {
-                    const schedule = intern.schedules.find(s => s.date === dateStr);
-                    const prevSchedule = intern.schedules.find(s => s.date === getYesterday(dateStr));
-                    const blocks = getShiftBlocksForDay(schedule, prevSchedule);
-
-                    const widthPct = 100 / activeInterns.length;
-                    const leftPct = idx * widthPct;
-
-                    return blocks.map((block, bIdx) => (
-                      <div 
-                        key={`${intern.id}-${bIdx}`}
-                        className={`shift-pill ${block.colorClass}`}
-                        style={{
-                          top: `${block.topPx}px`,
-                          height: `${block.heightPx}px`,
-                          left: `${leftPct}%`,
-                          width: `${widthPct}%`
-                        }}
-                      >
-                        <span className="pill-title">{block.label}</span>
-                        {block.heightPx > 50 && (
+  /* ── Team Table (TMC Spreadsheet) ── */
+  const renderWeekTable = (weekStart: string, title: string) => {
+    const dates = generateWeekDates(weekStart);
+    return (
+      <div className="table-wrap">
+        <h3 className="week-title">{title}</h3>
+        <div className="table-scroll">
+          <table className="schedule-table">
+            <thead>
+              <tr>
+                <th className="intern-name">Intern</th>
+                {dates.map((d) => {
+                  const { weekday, day } = fmtDayHeader(d);
+                  return (
+                    <th key={d}>
+                      <div className="col-day">{weekday}</div>
+                      <div className="col-date">{day}</div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {interns.map((intern, idx) => (
+                <tr key={intern.id}>
+                  <td className="intern-name">
+                    <span className="intern-num">{idx + 1}</span>
+                    {intern.name.split(',')[0]}
+                  </td>
+                  {dates.map((d) => {
+                    const sched = intern.schedules.find((s) => s.date === d);
+                    const shift = sched ? shifts[sched.shiftId] : null;
+                    const color = sched ? pillColor(sched.shiftId) : '';
+                    return (
+                      <td key={d} className={`shift-pill-cell ${color}`}>
+                        {shift ? (
                           <>
-                            <span className="pill-time">{block.timeLabel}</span>
-                            <span className="pill-intern"><User size={10} /> {intern.name.split(',')[0]}</span>
+                            <div className="shift-name">{shift.name}</div>
+                            {!shift.isFree && (
+                              <div className="shift-time">
+                                {shift.startTime} – {shift.endTime}
+                              </div>
+                            )}
                           </>
+                        ) : (
+                          <div className="shift-name" style={{ opacity: 0.4 }}>
+                            {intern.id === 'andrieux' ? 'No Data' : '—'}
+                          </div>
                         )}
-                      </div>
-                    ));
+                      </td>
+                    );
                   })}
-
-                </div>
+                </tr>
               ))}
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
-
       </div>
+    );
+  };
+
+  const renderTable = () => (
+    <div className="content-area">
+      <h2 className="page-heading">Team Schedule</h2>
+      <p className="page-sub">Everyone's individual schedule — Week 1 and Week 2 stacked.</p>
+      {renderWeekTable('2026-08-10', 'Week 1  ·  Aug 10 – 16')}
+      {renderWeekTable('2026-08-17', 'Week 2  ·  Aug 17 – 23')}
     </div>
   );
 
+  /* ── Heatmap ── */
+  const renderHeatmap = () => {
+    const totalInterns = interns.length;
+    return (
+      <div className="content-area">
+        <h2 className="page-heading">Group Busyness Heatmap</h2>
+        <p className="page-sub">
+          Instantly see when the team is free.{' '}
+          <strong className="legend-free">Green ✓ = Everyone Free</strong>,{' '}
+          <strong className="legend-busy">Red = Busy</strong>.
+          Hover for details.
+        </p>
+
+        <div className="card" style={{ padding: '1rem', overflowX: 'auto' }}>
+          <div className="heatmap-grid">
+            {/* Header row */}
+            <div className="heatmap-corner"></div>
+            {ALL_14_DATES.map((d) => {
+              const { weekday, day } = fmtDayHeader(d);
+              return (
+                <div key={d} className="heatmap-header-cell">
+                  <div>{weekday}</div>
+                  <div style={{ fontWeight: 700 }}>{day}</div>
+                </div>
+              );
+            })}
+
+            {/* Hour rows */}
+            {HEATMAP_HOURS.map((hour) => (
+              <>
+                <div key={`t-${hour}`} className="heatmap-time-cell">
+                  {fmtHour(hour)}
+                </div>
+                {ALL_14_DATES.map((dateStr) => {
+                  const busyInterns = interns.filter((i) => isInternBusyAtHour(i, dateStr, hour));
+                  const busy = busyInterns.length;
+                  const tooltip =
+                    busy === 0
+                      ? 'Everyone is free!'
+                      : `${busy} busy:\n${busyInterns.map((i) => `• ${i.name.split(',')[0]}`).join('\n')}`;
+                  return (
+                    <div
+                      key={`${dateStr}-${hour}`}
+                      className={`heatmap-cell ${densityClass(busy)}`}
+                      title={tooltip}
+                    >
+                      {densityLabel(busy, totalInterns)}
+                    </div>
+                  );
+                })}
+              </>
+            ))}
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="heatmap-legend">
+          <span className="legend-item"><span className="legend-swatch density-0"></span> Free</span>
+          <span className="legend-item"><span className="legend-swatch density-1"></span> 1–2 busy</span>
+          <span className="legend-item"><span className="legend-swatch density-2"></span> 3–4 busy</span>
+          <span className="legend-item"><span className="legend-swatch density-3"></span> 5–6 busy</span>
+          <span className="legend-item"><span className="legend-swatch density-4"></span> 7–8 busy</span>
+        </div>
+      </div>
+    );
+  };
+
+  /* ── Analytics ── */
   const renderAnalytics = () => (
     <div className="content-area">
-      <div className="card" style={{ flex: 1 }}>
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>Analytics & Fairness Tracker</h2>
+      <h2 className="page-heading">Analytics & Fairness Tracker</h2>
+      <p className="page-sub">Duty distribution across LEC 22 interns for this rotation.</p>
+
+      <div className="card">
         <table className="analytics-table">
           <thead>
             <tr>
-              <th>Intern Name</th>
-              <th>Total Duties</th>
-              <th>Free Days (OFF/FROM)</th>
-              <th>Status</th>
+              <th>#</th>
+              <th>Intern</th>
+              <th>Duties</th>
+              <th>Free Days</th>
+              <th>Total Logged</th>
+              <th>Load</th>
             </tr>
           </thead>
           <tbody>
-            {interns.map(intern => {
-              const duties = calculateTotalDuties(intern);
-              const free = intern.schedules.filter(s => ['off', 'from'].includes(s.shiftId)).length;
+            {interns.map((intern, idx) => {
+              const duties = intern.schedules.filter((s) =>
+                ['duty', 'dutyAmOpd', 'dutyPm', 'ongAm', 'ongPm'].includes(s.shiftId)
+              ).length;
+              const free = intern.schedules.filter((s) =>
+                ['off', 'from'].includes(s.shiftId)
+              ).length;
+              const total = intern.schedules.length;
+              const isHeavy = duties >= 6;
               return (
                 <tr key={intern.id}>
-                  <td>{intern.name}</td>
+                  <td>{idx + 1}</td>
+                  <td style={{ fontWeight: 600 }}>{intern.name.split(',')[0]}</td>
                   <td>{duties}</td>
                   <td>{free}</td>
+                  <td>{total}</td>
                   <td>
-                    <span style={{
-                      padding: '4px 8px', 
-                      borderRadius: '4px', 
-                      background: duties > 6 ? '#fee2e2' : '#dcfce7',
-                      color: duties > 6 ? '#991b1b' : '#166534',
-                      fontSize: '0.8rem',
-                      fontWeight: 600
-                    }}>
-                      {duties > 6 ? 'Heavy Load' : 'Balanced'}
+                    <span className={`load-badge ${isHeavy ? 'load-heavy' : 'load-ok'}`}>
+                      {isHeavy ? 'Heavy' : 'Balanced'}
                     </span>
                   </td>
                 </tr>
-              )
+              );
             })}
           </tbody>
         </table>
@@ -390,91 +395,83 @@ export default function App() {
     </div>
   );
 
+  /* ── Layout ── */
+  const navItems: { id: View; icon: typeof LayoutDashboard; label: string }[] = [
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Overview' },
+    { id: 'table', icon: CalendarDays, label: 'Team Schedule' },
+    { id: 'heatmap', icon: Flame, label: 'Heatmap' },
+    { id: 'analytics', icon: BarChart3, label: 'Analytics' },
+  ];
 
-  // --- Main Layout ---
   return (
     <div className="app-layout">
-      {/* Left Sidebar Menu */}
+      {/* Sidebar */}
       <aside className="sidebar">
         <div className="logo-container">
-          <div className="logo-icon">
-            <CalendarDays size={20} />
-          </div>
-          <div className="logo-text">LEC Schedule</div>
+          <div className="logo-icon"><CalendarDays size={20} /></div>
+          <span className="logo-text">LEC 22</span>
         </div>
 
         <nav className="nav-menu">
-          <div 
-            className={`nav-item ${activeView === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveView('dashboard')}
-          >
-            <LayoutDashboard size={18} />
-            <span>Overview</span>
-          </div>
-          <div 
-            className={`nav-item ${activeView === 'calendar' ? 'active' : ''}`}
-            onClick={() => setActiveView('calendar')}
-          >
-            <CalendarDays size={18} />
-            <span>Team Calendar</span>
-          </div>
-          <div 
-            className={`nav-item ${activeView === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveView('analytics')}
-          >
-            <BarChart3 size={18} />
-            <span>Analytics</span>
-          </div>
+          {navItems.map(({ id, icon: Icon, label }) => (
+            <div
+              key={id}
+              className={`nav-item ${view === id ? 'active' : ''}`}
+              onClick={() => setView(id)}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+            </div>
+          ))}
         </nav>
 
         <div className="sidebar-footer">
-          <div className="nav-item">
+          <div className="nav-item" onClick={() => {}}>
             <Settings size={18} />
             <span>Settings</span>
           </div>
         </div>
       </aside>
 
-      {/* Main Workspace */}
+      {/* Main */}
       <main className="main-wrapper">
         <header className="topbar">
           <div className="page-title">
-            {activeView === 'dashboard' && 'Dashboard Overview'}
-            {activeView === 'calendar' && 'Team Calendar'}
-            {activeView === 'analytics' && 'Analytics'}
+            {view === 'dashboard' && 'Dashboard'}
+            {view === 'table' && 'Team Schedule'}
+            {view === 'heatmap' && 'Group Heatmap'}
+            {view === 'analytics' && 'Analytics'}
           </div>
-          
+
           <div className="topbar-actions">
-            <button className="icon-btn" title="Search">
-              <Search size={18} />
-            </button>
-            <button className="icon-btn" onClick={toggleTheme} title="Toggle Theme">
+            <button className="icon-btn" onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))} title="Toggle Theme">
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             <button className="icon-btn" title="Notifications">
               <Bell size={18} />
             </button>
-            
+
             <div className="user-profile">
-              <div className="avatar">
-                {currentUser?.name.charAt(0)}
-              </div>
-              <select 
-                className="user-select" 
-                value={currentUserId} 
-                onChange={(e) => setCurrentUserId(e.target.value)}
+              <div className="avatar">{user.name.charAt(0)}</div>
+              <select
+                className="user-select"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
               >
-                {interns.map(i => (
-                  <option key={i.id} value={i.id}>{i.name.split(',')[0]}</option>
+                {interns.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name.split(',')[0]}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
         </header>
 
-        {activeView === 'dashboard' && renderDashboard()}
-        {activeView === 'calendar' && renderCalendar()}
-        {activeView === 'analytics' && renderAnalytics()}
+        {view === 'dashboard' && renderDashboard()}
+        {view === 'table' && renderTable()}
+        {view === 'heatmap' && renderHeatmap()}
+        {view === 'analytics' && renderAnalytics()}
       </main>
     </div>
   );
