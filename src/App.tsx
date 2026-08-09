@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { interns, shifts, type Intern, type DaySchedule } from './data/schedules';
+import { interns, shifts, type Intern } from './data/schedules';
 
 // Helper to get yesterday's date safely
 function getYesterday(dateStr: string) {
@@ -21,9 +21,45 @@ function generateWeekDates(startDateStr: string) {
   return dates;
 }
 
-// Check if an intern is busy at a specific hour on a specific date (for Monthly calendar)
+// Check if an intern is busy at a specific hour on a specific date
 function isInternBusy(intern: Intern, dateStr: string, hour: number): boolean {
   if (intern.schedules.length === 0) return false;
+  
+  const todaySchedule = intern.schedules.find(s => s.date === dateStr);
+  let busyToday = false;
+  if (todaySchedule) {
+    const shift = shifts[todaySchedule.shiftId];
+    if (!shift.isFree) {
+      const startH = parseInt(shift.startTime.split(':')[0]);
+      const endH = parseInt(shift.endTime.split(':')[0]);
+      if (startH < endH) {
+        if (hour >= startH && hour < endH) busyToday = true;
+      } else if (startH > endH) {
+        if (hour >= startH) busyToday = true;
+      }
+    }
+  }
+  
+  let busyFromYesterday = false;
+  const prevDateStr = getYesterday(dateStr);
+  const yesterdaySchedule = intern.schedules.find(s => s.date === prevDateStr);
+  if (yesterdaySchedule) {
+    const shift = shifts[yesterdaySchedule.shiftId];
+    if (!shift.isFree) {
+      const startH = parseInt(shift.startTime.split(':')[0]);
+      const endH = parseInt(shift.endTime.split(':')[0]);
+      if (startH > endH) {
+         if (hour < endH) busyFromYesterday = true;
+      }
+    }
+  }
+  
+  return busyToday || busyFromYesterday;
+}
+
+// Get the shift details for tooltip
+function getInternShiftForHour(intern: Intern, dateStr: string, hour: number): string | null {
+  if (!isInternBusy(intern, dateStr, hour)) return null;
   
   const todaySchedule = intern.schedules.find(s => s.date === dateStr);
   if (todaySchedule) {
@@ -31,10 +67,8 @@ function isInternBusy(intern: Intern, dateStr: string, hour: number): boolean {
     if (!shift.isFree) {
       const startH = parseInt(shift.startTime.split(':')[0]);
       const endH = parseInt(shift.endTime.split(':')[0]);
-      if (startH < endH) {
-        if (hour >= startH && hour < endH) return true;
-      } else if (startH > endH) {
-        if (hour >= startH) return true;
+      if ((startH < endH && hour >= startH && hour < endH) || (startH > endH && hour >= startH)) {
+        return shift.name;
       }
     }
   }
@@ -46,20 +80,25 @@ function isInternBusy(intern: Intern, dateStr: string, hour: number): boolean {
     if (!shift.isFree) {
       const startH = parseInt(shift.startTime.split(':')[0]);
       const endH = parseInt(shift.endTime.split(':')[0]);
-      if (startH > endH) {
-         if (hour < endH) return true;
+      if (startH > endH && hour < endH) {
+         return shift.name + ' (Yesterday)';
       }
     }
   }
-  return false;
+  return null;
 }
 
 function formatDateHeader(dateStr: string) {
   const parts = dateStr.split('-');
   const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  const monthDay = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-  const day = d.getDate();
-  return `${weekday} ${day}`;
+  return (
+    <>
+      <div>{monthDay}</div>
+      <div>{weekday}</div>
+    </>
+  );
 }
 
 function getShiftColorClass(shiftId: string) {
@@ -71,94 +110,19 @@ function getShiftColorClass(shiftId: string) {
   return 'shift-color-grey';
 }
 
-const TIMELINE_START = 6; // 6 AM
-const TIMELINE_END = 24;  // 12 AM (Midnight)
-const TIMELINE_HOURS = 18;
-const PIXELS_PER_HOUR = 60;
-
-function parseTime(timeStr: string) {
-  const [h, m] = timeStr.split(':').map(Number);
-  return h + (m || 0) / 60;
-}
-
-interface BlockProps {
-  topPx: number;
-  heightPx: number;
-  label: string;
-  timeLabel: string;
-  colorClass: string;
-}
-
-function getShiftBlocksForDay(schedule: DaySchedule | undefined, prevSchedule: DaySchedule | undefined): BlockProps[] {
-  const blocks: BlockProps[] = [];
-  
-  if (schedule) {
-    const shift = shifts[schedule.shiftId];
-    if (shift && !shift.isFree) {
-      const start = parseTime(shift.startTime);
-      const end = shift.endTime === '23:59' ? 24 : parseTime(shift.endTime);
-      
-      if (start > end) { // Crosses midnight
-        const renderStart = Math.max(start, TIMELINE_START);
-        const renderEnd = TIMELINE_END;
-        if (renderStart < renderEnd) {
-           blocks.push({
-             topPx: (renderStart - TIMELINE_START) * PIXELS_PER_HOUR,
-             heightPx: (renderEnd - renderStart) * PIXELS_PER_HOUR,
-             label: shift.name,
-             timeLabel: `${shift.startTime}-${shift.endTime}`,
-             colorClass: getShiftColorClass(schedule.shiftId)
-           });
-        }
-      } else { // Normal shift
-        const renderStart = Math.max(start, TIMELINE_START);
-        const renderEnd = Math.min(end, TIMELINE_END);
-        
-        if (renderStart < renderEnd) {
-           blocks.push({
-             topPx: (renderStart - TIMELINE_START) * PIXELS_PER_HOUR,
-             heightPx: (renderEnd - renderStart) * PIXELS_PER_HOUR,
-             label: shift.name,
-             timeLabel: `${shift.startTime}-${shift.endTime}`,
-             colorClass: getShiftColorClass(schedule.shiftId)
-           });
-        }
-      }
-    }
-  }
-
-  if (prevSchedule) {
-    const prevShift = shifts[prevSchedule.shiftId];
-    if (prevShift && !prevShift.isFree) {
-      const pStart = parseTime(prevShift.startTime);
-      const pEnd = prevShift.endTime === '23:59' ? 24 : parseTime(prevShift.endTime);
-      
-      if (pStart > pEnd) { // Crossed midnight into TODAY
-        const renderStart = TIMELINE_START;
-        const renderEnd = Math.min(pEnd, TIMELINE_END);
-        
-        if (renderStart < renderEnd) {
-           blocks.push({
-             topPx: (renderStart - TIMELINE_START) * PIXELS_PER_HOUR,
-             heightPx: (renderEnd - renderStart) * PIXELS_PER_HOUR,
-             label: prevShift.name,
-             timeLabel: `${prevShift.startTime}-${prevShift.endTime}`,
-             colorClass: getShiftColorClass(prevSchedule.shiftId)
-           });
-        }
-      }
-    }
-  }
-
-  return blocks;
+function getDensityClass(busyCount: number) {
+  if (busyCount === 0) return 'heatmap-density-0'; // Free!
+  if (busyCount <= 2) return 'heatmap-density-1';
+  if (busyCount <= 4) return 'heatmap-density-2';
+  if (busyCount <= 6) return 'heatmap-density-3';
+  return 'heatmap-density-4';
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'freetime'>('dashboard');
-  const [selectedWeekStart, setSelectedWeekStart] = useState('2026-08-10');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'heatmap' | 'freetime'>('dashboard');
 
-  const weekStarts = ['2026-08-10', '2026-08-17'];
   const wakingHours = Array.from({ length: 14 }, (_, i) => i + 8); // 8 AM to 9:59 PM
+  const heatmapHours = Array.from({ length: 18 }, (_, i) => i + 6); // 6 AM to 11:59 PM
 
   const formatHour = (h: number) => {
     const ampm = h >= 12 ? 'PM' : 'AM';
@@ -166,80 +130,121 @@ export default function App() {
     return `${hour12}:00 ${ampm}`;
   };
 
-  const renderDashboard = () => {
-    const weekDates = generateWeekDates(selectedWeekStart);
-    const axisHours = Array.from({ length: TIMELINE_HOURS }, (_, i) => TIMELINE_START + i);
-    const totalInterns = interns.length;
+  const renderDashboardTable = (startDate: string, title: string) => {
+    const weekDates = generateWeekDates(startDate);
 
     return (
-      <div className="panel" style={{ padding: '1rem' }}>
-        <div className="date-selector">
-          <label>Select Week: </label>
-          <select 
-            value={selectedWeekStart} 
-            onChange={(e) => setSelectedWeekStart(e.target.value)}
-          >
-            {weekStarts.map(ws => {
-              const parts = ws.split('-');
-              const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-              return <option key={ws} value={ws}>Week of {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</option>;
-            })}
-          </select>
-        </div>
+      <div className="table-container">
+        <h3 style={{textAlign: 'center', margin: '1rem 0', color: 'var(--text-primary)'}}>{title}</h3>
+        <table className="schedule-table">
+          <thead>
+            <tr>
+              <th className="intern-name">Intern</th>
+              {weekDates.map(date => (
+                <th key={date}>{formatDateHeader(date)}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {interns.map((intern, index) => (
+              <tr key={intern.id}>
+                <td className="intern-name">{index + 1}. {intern.name}</td>
+                {weekDates.map(date => {
+                  const schedule = intern.schedules.find(s => s.date === date);
+                  const shift = schedule ? shifts[schedule.shiftId] : null;
+                  const colorClass = schedule ? getShiftColorClass(schedule.shiftId) : 'shift-color-white';
+                  
+                  return (
+                    <td key={date} className={`shift-cell ${colorClass}`}>
+                      {shift ? (
+                        <>
+                          <span>{shift.name}</span>
+                          {!shift.isFree && <span className="shift-time">{shift.startTime}-{shift.endTime}</span>}
+                        </>
+                      ) : (
+                        <span style={{color: 'var(--text-secondary)'}}>{intern.id === 'andrieux' ? 'No Data' : 'OFF'}</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
-        <div className="week-calendar-container">
-          <div className="week-calendar-header">
-            <div className="time-axis-spacer"></div>
-            {weekDates.map(date => (
-              <div key={date} className="day-column-header">
+  const renderDashboard = () => (
+    <div className="panel">
+      <h2 style={{textAlign: 'center', marginBottom: '1.5rem', color: 'var(--text-primary)'}}>TMC Spreadsheet Schedule</h2>
+      <p className="subtitle" style={{textAlign: 'center', marginBottom: '2rem'}}>
+        Individual schedules stacked vertically to eliminate horizontal scrolling. Exact hours are written in each block.
+      </p>
+      {renderDashboardTable('2026-08-10', 'Week 1 (Aug 10 - Aug 16)')}
+      {renderDashboardTable('2026-08-17', 'Week 2 (Aug 17 - Aug 23)')}
+    </div>
+  );
+
+  const renderHeatmap = () => {
+    
+    // To keep it simple and scroll-free, we render 14 days directly in one flex container? No, Google calendar is 7 days.
+    // Let's just do all 14 days in the heatmap.
+    const allDates = [
+      ...generateWeekDates('2026-08-10'),
+      ...generateWeekDates('2026-08-17')
+    ];
+
+    return (
+      <div className="panel">
+        <h2 style={{textAlign: 'center', marginBottom: '1.5rem', color: 'var(--text-primary)'}}>Group Busyness Heatmap</h2>
+        <p className="subtitle" style={{textAlign: 'center', marginBottom: '2rem'}}>
+          Quickly spot free time! <strong style={{color: '#166534'}}>Green</strong> means everyone is free. <strong style={{color: '#991b1b'}}>Red</strong> means people are busy. Hover over a cell to see who is working.
+        </p>
+
+        <div className="heatmap-container">
+          <div className="heatmap-header">
+            <div className="heatmap-axis-spacer"></div>
+            {allDates.map(date => (
+              <div key={date} className="heatmap-col-header">
                 {formatDateHeader(date)}
               </div>
             ))}
           </div>
-          
-          <div className="week-calendar-body">
-            <div className="time-axis">
-              {axisHours.map(hour => (
-                <div key={hour} className="time-label">
-                  <span>{hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}</span>
+
+          <div className="heatmap-body">
+            <div className="heatmap-axis">
+              {heatmapHours.map(hour => (
+                <div key={hour} className="heatmap-time-label">
+                  {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
                 </div>
               ))}
             </div>
-            
-            <div className="day-columns-container">
-              {weekDates.map(dateStr => (
-                <div key={dateStr} className="day-column">
-                  {/* Grid Lines */}
-                  {axisHours.map(hour => (
-                    <div key={hour} className="hour-grid-line"></div>
-                  ))}
 
-                  {/* Shift Blocks for this day */}
-                  {interns.map((intern, internIdx) => {
-                    const schedule = intern.schedules.find(s => s.date === dateStr);
-                    const prevSchedule = intern.schedules.find(s => s.date === getYesterday(dateStr));
-                    const blocks = getShiftBlocksForDay(schedule, prevSchedule);
+            <div className="heatmap-day-columns">
+              {allDates.map(dateStr => (
+                <div key={dateStr} className="heatmap-col">
+                  {heatmapHours.map(hour => {
+                    const busyInterns = interns.filter(intern => isInternBusy(intern, dateStr, hour));
+                    const busyCount = busyInterns.length;
+                    const densityClass = getDensityClass(busyCount);
+                    
+                    let tooltipText = '';
+                    if (busyCount === 0) {
+                      tooltipText = 'Everyone is free!';
+                    } else {
+                      tooltipText = `Busy (${busyCount}):\n` + busyInterns.map(i => `- ${i.name.split(',')[0]} (${getInternShiftForHour(i, dateStr, hour)})`).join('\n');
+                    }
 
-                    const widthPct = 100 / totalInterns;
-                    const leftPct = internIdx * widthPct;
-                    const initials = intern.name.split(',')[0].substring(0, 3); // e.g. ABA
-
-                    return blocks.map((block, bIdx) => (
+                    return (
                       <div 
-                        key={`${intern.id}-${bIdx}`}
-                        className={`shift-block-vertical ${block.colorClass}`}
-                        style={{
-                          top: `${block.topPx}px`,
-                          height: `${block.heightPx}px`,
-                          left: `${leftPct}%`,
-                          width: `${widthPct}%`
-                        }}
-                        title={`${intern.name}: ${block.label} (${block.timeLabel})`}
+                        key={hour} 
+                        className={`heatmap-cell ${densityClass}`}
+                        title={tooltipText}
                       >
-                        <span className="shift-intern-name">{internIdx + 1}. {initials}</span>
-                        {block.heightPx >= 45 && <span className="shift-block-name">{block.label}</span>}
+                        {busyCount === 0 ? 'Free' : busyCount}
                       </div>
-                    ));
+                    );
                   })}
                 </div>
               ))}
@@ -327,7 +332,13 @@ export default function App() {
           className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
           onClick={() => setActiveTab('dashboard')}
         >
-          Google Calendar View
+          TMC Spreadsheet
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'heatmap' ? 'active' : ''}`}
+          onClick={() => setActiveTab('heatmap')}
+        >
+          Group Heatmap
         </button>
         <button 
           className={`tab-btn ${activeTab === 'freetime' ? 'active' : ''}`}
@@ -338,7 +349,9 @@ export default function App() {
       </div>
 
       <main>
-        {activeTab === 'dashboard' ? renderDashboard() : renderFreeTimeCalendar()}
+        {activeTab === 'dashboard' && renderDashboard()}
+        {activeTab === 'heatmap' && renderHeatmap()}
+        {activeTab === 'freetime' && renderFreeTimeCalendar()}
       </main>
     </div>
   );

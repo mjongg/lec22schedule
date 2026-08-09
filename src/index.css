@@ -90,142 +90,75 @@ h1 {
   margin-bottom: 2rem;
 }
 
-/* Date Selector */
-.date-selector {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-.date-selector select {
-  background: #ffffff;
+/* Weekly Table (TMC Spreadsheet) */
+.table-container {
+  overflow-x: auto;
   border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 0.5rem 1rem;
   border-radius: 4px;
-  font-family: inherit;
-  font-size: 1rem;
-  outline: none;
-  cursor: pointer;
+  margin-bottom: 2rem;
 }
 
-/* Google Calendar Style Week View */
-.week-calendar-container {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: #fff;
-  height: 75vh;
-  min-height: 600px;
-  overflow: hidden;
-}
-
-.week-calendar-header {
-  display: flex;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--table-header-bg);
-}
-
-.time-axis-spacer {
-  width: 60px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--border-color);
-}
-
-.day-column-header {
-  flex: 1;
-  min-width: 120px;
+.schedule-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: center;
-  padding: 0.75rem 0;
+  min-width: 1000px;
+  background: var(--table-bg);
+}
+
+.schedule-table th,
+.schedule-table td {
   border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.75rem 0.5rem;
+  font-size: 0.9rem;
+}
+
+.schedule-table th {
+  background: var(--table-header-bg);
   font-weight: 600;
   color: var(--text-primary);
-}
-.day-column-header:last-child {
-  border-right: none;
-}
-
-.week-calendar-body {
-  display: flex;
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: auto;
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  border-top: 1px solid var(--border-color);
 }
 
-.time-axis {
-  width: 60px;
-  flex-shrink: 0;
-  background: #f8fafc;
-  border-right: 1px solid var(--border-color);
+.schedule-table .intern-name {
+  text-align: left;
+  font-weight: 600;
+  background: var(--table-header-bg);
+  color: var(--text-primary);
+  white-space: nowrap;
   position: sticky;
   left: 0;
-  z-index: 20;
+  z-index: 10;
+  border-left: 1px solid var(--border-color);
+  width: 280px;
 }
 
-.time-label {
-  height: 60px; /* 1 hour = 60px */
-  text-align: right;
-  padding-right: 0.5rem;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-  position: relative;
-}
-.time-label span {
-  position: relative;
-  top: -8px; /* align text with grid line */
+.schedule-table th.intern-name {
+  z-index: 15;
 }
 
-.day-columns-container {
-  display: flex;
-  flex: 1;
-}
-
-.day-column {
-  flex: 1;
-  min-width: 120px;
-  border-right: 1px solid var(--grid-line);
-  position: relative;
-  background: #ffffff;
-}
-.day-column:last-child {
-  border-right: none;
-}
-
-.hour-grid-line {
-  height: 60px;
-  border-bottom: 1px solid var(--grid-line);
-  box-sizing: border-box;
-}
-
-/* Vertical Shift Block */
-.shift-block-vertical {
-  position: absolute;
-  border-radius: 4px;
-  padding: 0.25rem;
-  font-size: 0.7rem;
-  overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  line-height: 1.2;
-}
-
-.shift-intern-name {
-  font-weight: 700;
-  margin-bottom: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
-}
-.shift-block-name {
+/* Fix for standard table cells so they don't break flex layout */
+.shift-cell {
   font-weight: 600;
+  text-align: center;
+  vertical-align: middle;
+  height: 70px;
+}
+
+.shift-cell span {
+  display: block;
+}
+
+.shift-time {
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 0.35rem;
+  opacity: 0.9;
 }
 
 /* Colors */
@@ -234,9 +167,111 @@ h1 {
 .shift-color-green { background: #dcfce7; color: #166534; }
 .shift-color-pink { background: #fce7f3; color: #9d174d; }
 .shift-color-grey { background: #f3f4f6; color: #374151; }
-.shift-color-white { background: #ffffff; color: #000000; border: 1px solid var(--border-color); }
+.shift-color-white { background: #ffffff; color: #000000; }
 
-/* Free Time Calendar */
+/* Group Heatmap Weekly Grid */
+.heatmap-container {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fff;
+  height: 70vh;
+  min-height: 600px;
+  overflow: hidden;
+}
+
+.heatmap-header {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--table-header-bg);
+}
+
+.heatmap-axis-spacer {
+  width: 80px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+}
+
+.heatmap-col-header {
+  flex: 1;
+  min-width: 100px;
+  text-align: center;
+  padding: 0.75rem 0;
+  border-right: 1px solid var(--border-color);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.heatmap-col-header:last-child { border-right: none; }
+
+.heatmap-body {
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.heatmap-axis {
+  width: 80px;
+  flex-shrink: 0;
+  background: #f8fafc;
+  border-right: 1px solid var(--border-color);
+  position: sticky;
+  left: 0;
+  z-index: 10;
+}
+
+.heatmap-time-label {
+  height: 40px; /* 1 block = 40px */
+  text-align: right;
+  padding-right: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-bottom: 1px solid var(--grid-line);
+}
+
+.heatmap-day-columns {
+  display: flex;
+  flex: 1;
+}
+
+.heatmap-col {
+  flex: 1;
+  min-width: 100px;
+  border-right: 1px solid var(--grid-line);
+  display: flex;
+  flex-direction: column;
+}
+.heatmap-col:last-child { border-right: none; }
+
+.heatmap-cell {
+  height: 40px;
+  border-bottom: 1px solid var(--grid-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  cursor: default;
+}
+.heatmap-cell:hover {
+  opacity: 0.8;
+}
+
+/* Heatmap Density Colors */
+.heatmap-density-0 { background: #dcfce7; color: #166534; } /* 0 busy = free */
+.heatmap-density-1 { background: #fee2e2; color: #991b1b; } /* 1-2 busy */
+.heatmap-density-2 { background: #fca5a5; color: #991b1b; } /* 3-4 busy */
+.heatmap-density-3 { background: #ef4444; color: #ffffff; } /* 5-6 busy */
+.heatmap-density-4 { background: #b91c1c; color: #ffffff; } /* 7-8 busy */
+
+
+/* Monthly Free Time Calendar */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -262,6 +297,7 @@ h1 {
   padding: 0.5rem;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start; /* Aligned to top */
 }
 
 .calendar-cell.out-of-month {
@@ -278,7 +314,6 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  margin-top: auto;
 }
 
 .free-time-slot {
@@ -296,6 +331,6 @@ h1 {
   color: var(--text-secondary);
   font-size: 0.8rem;
   text-align: center;
-  margin-top: auto;
   font-weight: 500;
+  margin-top: 0.5rem;
 }
