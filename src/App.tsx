@@ -78,9 +78,7 @@ function getShiftColorClass(shiftId: string) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'freetime'>('dashboard');
-  const [selectedWeekStart, setSelectedWeekStart] = useState('2026-08-10');
 
-  const weekStarts = ['2026-08-10', '2026-08-17'];
   const wakingHours = Array.from({ length: 14 }, (_, i) => i + 8); // 8 AM to 9:59 PM
 
   const formatHour = (h: number) => {
@@ -90,24 +88,15 @@ export default function App() {
   };
 
   const renderDashboard = () => {
-    const weekDates = generateWeekDates(selectedWeekStart);
+    // Show both weeks simultaneously (14 days)
+    const weekDates = [
+      ...generateWeekDates('2026-08-10'),
+      ...generateWeekDates('2026-08-17')
+    ];
 
     return (
       <div className="panel">
-        <div className="date-selector">
-          <label>Select Week: </label>
-          <select 
-            value={selectedWeekStart} 
-            onChange={(e) => setSelectedWeekStart(e.target.value)}
-          >
-            {weekStarts.map(ws => {
-              const parts = ws.split('-');
-              const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-              return <option key={ws} value={ws}>Week of {d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</option>;
-            })}
-          </select>
-        </div>
-
+        <h2 style={{textAlign: 'center', marginBottom: '1.5rem', color: 'var(--text-primary)'}}>Schedule (Aug 10 - Aug 23)</h2>
         <div className="table-container">
           <table className="schedule-table">
             <thead>
@@ -135,7 +124,7 @@ export default function App() {
                             {!shift.isFree && <span className="shift-time">{shift.startTime}-{shift.endTime}</span>}
                           </>
                         ) : (
-                          <span style={{color: 'var(--text-secondary)'}}>OFF</span>
+                          <span style={{color: 'var(--text-secondary)'}}>{intern.id === 'andrieux' ? 'No Data' : 'OFF'}</span>
                         )}
                       </td>
                     );
