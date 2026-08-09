@@ -63,11 +63,20 @@ function isInternBusyAtHour(intern: Intern, dateStr: string, hour: number): bool
   return false;
 }
 
+function formatAmPm(timeStr: string) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':').map(Number);
+  const ampm = h >= 12 && h < 24 ? 'PM' : 'AM';
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
 function pillColor(shiftId: string) {
-  if (['pre', 'or', 'opd', 'dutyAmOpd'].includes(shiftId)) return 'pill-blue';
-  if (['duty', 'dutyPm', 'ongPm'].includes(shiftId)) return 'pill-pink';
-  if (['ongAm'].includes(shiftId)) return 'pill-purple';
-  if (['ec', 'regioAm'].includes(shiftId)) return 'pill-green';
+  // AM shifts -> yellow
+  if (['pre', 'dutyAmOpd', 'or', 'ec', 'opd', 'ongAm', 'regioAm'].includes(shiftId)) return 'pill-yellow';
+  // PM shifts -> blue
+  if (['duty', 'dutyPm', 'ongPm'].includes(shiftId)) return 'pill-blue';
+  // OFF shifts -> gray
   return 'pill-gray';
 }
 
@@ -249,7 +258,7 @@ export default function App() {
                             <div className="shift-name">{shift.name}</div>
                             {!shift.isFree && (
                               <div className="shift-time">
-                                {shift.startTime} – {shift.endTime}
+                                {formatAmPm(shift.startTime)} – {formatAmPm(shift.endTime)}
                               </div>
                             )}
                           </>

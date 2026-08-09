@@ -31,7 +31,7 @@ export const shifts: Record<string, Shift> = {
   ongAm: { id: 'ongAm', name: 'AM Duty', startTime: '05:30', endTime: '17:30', isFree: false },
   ongPm: { id: 'ongPm', name: 'PM Duty', startTime: '17:30', endTime: '05:30', isFree: false },
   
-  regioAm: { id: 'regioAm', name: 'Morning', startTime: '08:00', endTime: '12:00', isFree: false },
+  regioAm: { id: 'regioAm', name: 'Community', startTime: '08:00', endTime: '12:00', isFree: false },
 };
 
 export const interns: Intern[] = [

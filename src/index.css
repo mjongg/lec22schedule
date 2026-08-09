@@ -470,56 +470,22 @@ body {
 }
 
 /* Shift Pill Colors (used as bg on cell/pill) */
-.pill-blue {
-  background: #dbeafe;
-  color: #1e3a8a;
-}
-
-.pill-pink {
-  background: #fce7f3;
-  color: #be185d;
-}
-
-.pill-purple {
-  background: #f3e8ff;
-  color: #7e22ce;
-}
-
-.pill-green {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.pill-gray {
-  background: #f1f5f9;
-  color: #475569;
-}
+.pill-blue { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+.pill-purple { background: #f3e8ff; color: #7e22ce; border-color: #e9d5ff; }
+.pill-green { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+.pill-orange { background: #ffedd5; color: #c2410c; border-color: #fed7aa; }
+.pill-pink { background: #fce7f3; color: #be185d; border-color: #fbcfe8; }
+.pill-gray { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+.pill-yellow { background: #fef9c3; color: #854d0e; border-color: #fef08a; }
 
 /* Shift Pill Dark Mode Overrides */
-[data-theme='dark'] .pill-blue {
-  background: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
-}
-
-[data-theme='dark'] .pill-pink {
-  background: rgba(236, 72, 153, 0.15);
-  color: #f9a8d4;
-}
-
-[data-theme='dark'] .pill-purple {
-  background: rgba(168, 85, 247, 0.15);
-  color: #d8b4fe;
-}
-
-[data-theme='dark'] .pill-green {
-  background: rgba(34, 197, 94, 0.15);
-  color: #86efac;
-}
-
-[data-theme='dark'] .pill-gray {
-  background: rgba(148, 163, 184, 0.15);
-  color: #cbd5e1;
-}
+[data-theme='dark'] .pill-blue { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; border-color: rgba(56, 189, 248, 0.3); }
+[data-theme='dark'] .pill-purple { background: rgba(168, 85, 247, 0.15); color: #d8b4fe; border-color: rgba(168, 85, 247, 0.3); }
+[data-theme='dark'] .pill-green { background: rgba(74, 222, 128, 0.15); color: #86efac; border-color: rgba(74, 222, 128, 0.3); }
+[data-theme='dark'] .pill-orange { background: rgba(251, 146, 60, 0.15); color: #fdba74; border-color: rgba(251, 146, 60, 0.3); }
+[data-theme='dark'] .pill-pink { background: rgba(244, 114, 182, 0.15); color: #f9a8d4; border-color: rgba(244, 114, 182, 0.3); }
+[data-theme='dark'] .pill-gray { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.3); }
+[data-theme='dark'] .pill-yellow { background: rgba(253, 224, 71, 0.15); color: #fde047; border-color: rgba(253, 224, 71, 0.3); }
 
 /* Heatmap View */
 .heatmap-container {
