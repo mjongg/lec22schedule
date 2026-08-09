@@ -30,14 +30,14 @@ body {
 }
 
 .app-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
 }
 
 header {
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   animation: fadeInDown 0.8s ease-out;
 }
 
@@ -64,12 +64,6 @@ h1 {
   border-radius: 16px;
   box-shadow: var(--glass-shadow);
   padding: 1.5rem;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.glass-panel:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
 }
 
 /* Tab Navigation */
@@ -102,81 +96,71 @@ h1 {
   box-shadow: 0 0 15px rgba(129, 140, 248, 0.5);
 }
 
-/* Grid Layout */
-.schedule-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
+/* Weekly Table */
+.table-container {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
 }
 
-.person-card {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  min-width: 900px;
 }
 
-.person-card h3 {
-  font-size: 1.1rem;
+.schedule-table th,
+.schedule-table td {
+  border: 1px solid var(--glass-border);
+  padding: 1rem 0.5rem;
+}
+
+.schedule-table th {
+  background: rgba(255, 255, 255, 0.08);
   font-weight: 600;
-  border-bottom: 1px solid var(--glass-border);
-  padding-bottom: 0.75rem;
   color: var(--text-primary);
+  position: sticky;
+  top: 0;
 }
 
-.shift-list {
+.schedule-table .intern-name {
+  text-align: left;
+  font-weight: 600;
+  background: rgba(15, 23, 42, 0.8);
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  padding-left: 1rem;
+}
+
+/* Shift Colors */
+.shift-cell {
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: opacity 0.2s;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-}
-
-.shift-item {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border-left: 4px solid var(--glass-border);
-  transition: background 0.2s;
-}
-
-.shift-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.shift-item.free {
-  border-left-color: var(--success);
-}
-
-.shift-item.busy {
-  border-left-color: var(--danger);
-}
-
-.shift-info {
-  display: flex;
-  flex-direction: column;
+  justify-content: center;
   gap: 0.25rem;
 }
 
-.shift-date {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.shift-name {
-  font-weight: 600;
-  font-size: 0.95rem;
+.shift-cell:hover {
+  opacity: 0.8;
 }
 
 .shift-time {
-  font-size: 0.8rem;
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.8;
 }
+
+.shift-color-blue { background: rgba(59, 130, 246, 0.4); }
+.shift-color-red { background: rgba(239, 68, 68, 0.4); }
+.shift-color-green { background: rgba(16, 185, 129, 0.4); }
+.shift-color-pink { background: rgba(236, 72, 153, 0.4); }
+.shift-color-grey { background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); }
 
 /* Date Selector */
 .date-selector {
@@ -204,83 +188,90 @@ h1 {
   color: white;
 }
 
-/* Free Time Timeline */
-.timeline-container {
-  margin-top: 2rem;
+/* Monthly Calendar */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  margin-top: 1rem;
 }
 
-.timeline-hour {
-  display: flex;
-  align-items: center;
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--glass-border);
-}
-
-.hour-label {
-  width: 60px;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.hour-blocks {
-  display: flex;
-  flex: 1;
-  gap: 4px;
-}
-
-.person-block {
-  flex: 1;
-  height: 24px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: bold;
-}
-
-.person-block.available {
-  background-color: rgba(52, 211, 153, 0.2);
-  border: 1px solid rgba(52, 211, 153, 0.5);
-  color: var(--success);
-}
-
-.person-block.unavailable {
-  background-color: rgba(248, 113, 113, 0.1);
-  border: 1px solid rgba(248, 113, 113, 0.3);
-  color: var(--text-secondary);
-  opacity: 0.5;
-}
-
-/* Common Free Time Summary */
-.free-time-summary {
-  margin-bottom: 2rem;
-  padding: 1rem;
-  background: rgba(52, 211, 153, 0.1);
-  border: 1px solid rgba(52, 211, 153, 0.3);
-  border-radius: 8px;
+.calendar-day-header {
   text-align: center;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0.5rem 0;
 }
 
-.free-time-summary h4 {
-  color: var(--success);
+.calendar-cell {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  min-height: 100px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s;
+  position: relative;
+}
+
+.calendar-cell:hover {
+  transform: scale(1.02);
+  z-index: 10;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+.calendar-cell.out-of-month {
+  opacity: 0.3;
+}
+
+.calendar-date {
+  font-weight: 600;
   margin-bottom: 0.5rem;
 }
 
-.free-time-slots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
+.free-time-badge {
+  background: rgba(52, 211, 153, 0.2);
+  color: var(--success);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  font-size: 0.75rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  text-align: center;
+  margin-top: auto;
+  font-weight: 600;
 }
 
-.time-slot {
-  background: var(--success);
-  color: #064e3b;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-weight: 600;
-  font-size: 0.9rem;
+.busy-badge {
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  font-size: 0.75rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  text-align: center;
+  margin-top: auto;
+}
+
+.free-hours-tooltip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a;
+  border: 1px solid var(--glass-border);
+  padding: 0.5rem;
+  border-radius: 8px;
+  width: max-content;
+  z-index: 20;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.calendar-cell:hover .free-hours-tooltip {
+  display: flex;
 }
 
 /* Animations */
@@ -296,5 +287,5 @@ h1 {
 }
 
 .fade-in {
-  animation: fadeInDown 0.5s ease-out;
+  animation: fadeInDown 0.4s ease-out;
 }

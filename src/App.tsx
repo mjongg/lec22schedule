@@ -13,27 +13,22 @@ function getYesterday(dateStr: string) {
 function isInternBusy(intern: Intern, dateStr: string, hour: number): boolean {
   if (intern.schedules.length === 0) return false; // No data = assume free
   
-  // Check today's shift
   const todaySchedule = intern.schedules.find(s => s.date === dateStr);
   if (todaySchedule) {
     const shift = shifts[todaySchedule.shiftId];
     if (!shift.isFree) {
       const startH = parseInt(shift.startTime.split(':')[0]);
       const endH = parseInt(shift.endTime.split(':')[0]);
-      
       if (startH < endH) {
         if (hour >= startH && hour < endH) return true;
       } else if (startH > endH) {
-        // Crosses midnight
         if (hour >= startH) return true;
       }
     }
   }
   
-  // Check yesterday's shift (for shifts crossing midnight)
   const prevDateStr = getYesterday(dateStr);
   const yesterdaySchedule = intern.schedules.find(s => s.date === prevDateStr);
-  
   if (yesterdaySchedule) {
     const shift = shifts[yesterdaySchedule.shiftId];
     if (!shift.isFree) {
@@ -48,37 +43,43 @@ function isInternBusy(intern: Intern, dateStr: string, hour: number): boolean {
   return false;
 }
 
-// Format date nicely (e.g. Aug 10, Mon)
+// Format date for display
 function formatDate(dateStr: string) {
   const parts = dateStr.split('-');
   const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
 }
 
+function getShiftColorClass(shiftId: string) {
+  if (['pre', 'or', 'opd', 'dutyAmOpd', 'ongAm'].includes(shiftId)) return 'shift-color-blue';
+  if (['duty', 'dutyPm', 'ongPm'].includes(shiftId)) return 'shift-color-red';
+  if (['ec', 'regioAm'].includes(shiftId)) return 'shift-color-green';
+  if (['off', 'from'].includes(shiftId)) return 'shift-color-grey';
+  return 'shift-color-grey';
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'freetime'>('dashboard');
   const [selectedWeekStart, setSelectedWeekStart] = useState('2026-08-10');
-  const [selectedDate, setSelectedDate] = useState('2026-08-10');
 
   const uniqueDates = Array.from(new Set(interns.flatMap(i => i.schedules.map(s => s.date)))).sort();
-  // Filter for weeks
   const weekStarts = ['2026-08-10', '2026-08-17'];
 
-  // Hours array 0-23
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  // Waking hours: 8:00 AM to 10:00 PM (8 to 21)
+  const wakingHours = Array.from({ length: 14 }, (_, i) => i + 8);
 
-  // Free time calculation for selected date
-  const commonFreeHours = hours.filter(hour => {
-    return interns.every(intern => !isInternBusy(intern, selectedDate, hour));
-  });
+  const formatHour = (h: number) => {
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:00 ${ampm}`;
+  };
 
   const renderDashboard = () => {
-    // Get dates for the selected week (7 days)
     const startDateIndex = uniqueDates.indexOf(selectedWeekStart);
-    const weekDates = uniqueDates.slice(startDateIndex, startDateIndex + 7);
+    const weekDates = uniqueDates.slice(startDateIndex, Math.min(startDateIndex + 7, uniqueDates.length));
 
     return (
-      <div className="fade-in">
+      <div className="fade-in glass-panel">
         <div className="date-selector">
           <label>Select Week: </label>
           <select 
@@ -91,93 +92,118 @@ export default function App() {
           </select>
         </div>
 
-        <div className="schedule-grid">
-          {interns.map(intern => (
-            <div key={intern.id} className="glass-panel person-card">
-              <h3>{intern.name}</h3>
-              {intern.schedules.length === 0 ? (
-                <p style={{ color: 'var(--text-secondary)' }}>No schedule data available.</p>
-              ) : (
-                <div className="shift-list">
+        <div className="table-container">
+          <table className="schedule-table">
+            <thead>
+              <tr>
+                <th style={{ width: '250px' }} className="intern-name">Intern</th>
+                {weekDates.map(date => (
+                  <th key={date}>{formatDate(date)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {interns.map(intern => (
+                <tr key={intern.id}>
+                  <td className="intern-name">{intern.name.split(',')[0]}</td>
                   {weekDates.map(date => {
                     const schedule = intern.schedules.find(s => s.date === date);
                     const shift = schedule ? shifts[schedule.shiftId] : null;
+                    const colorClass = schedule ? getShiftColorClass(schedule.shiftId) : 'shift-color-grey';
                     
                     return (
-                      <div key={date} className={`shift-item ${shift?.isFree ? 'free' : (shift ? 'busy' : '')}`}>
-                        <div className="shift-info">
-                          <span className="shift-date">{formatDate(date)}</span>
-                          <span className="shift-name">{shift ? shift.name : 'Unknown'}</span>
-                        </div>
-                        {shift && (
-                          <div className="shift-time">
-                            {shift.startTime} - {shift.endTime}
-                          </div>
+                      <td key={date} className={`shift-cell ${colorClass}`}>
+                        {shift ? (
+                          <>
+                            <span>{shift.name}</span>
+                            {!shift.isFree && <span className="shift-time">{shift.startTime}-{shift.endTime}</span>}
+                          </>
+                        ) : (
+                          <span style={{opacity: 0.5}}>No Data</span>
                         )}
-                      </div>
+                      </td>
                     );
                   })}
-                </div>
-              )}
-            </div>
-          ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );
   };
 
-  const renderFreeTimeFinder = () => {
+  const renderFreeTimeCalendar = () => {
+    // Generate August 2026 calendar grid
+    const daysInMonth = 31;
+    // Aug 1, 2026 is a Saturday (index 6 where Sun=0)
+    const firstDayIndex = 6; 
+    const calendarCells = [];
+
+    // Empty cells before the 1st
+    for (let i = 0; i < firstDayIndex; i++) {
+      calendarCells.push(<div key={`empty-${i}`} className="calendar-cell out-of-month"></div>);
+    }
+
+    // Days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `2026-08-${String(day).padStart(2, '0')}`;
+      
+      // Calculate overlapping free time during waking hours
+      const commonFreeHours = wakingHours.filter(hour => {
+        return interns.every(intern => !isInternBusy(intern, dateStr, hour));
+      });
+
+      // Group contiguous hours for display (e.g., "12:00 PM - 2:00 PM")
+      const formattedSlots: string[] = [];
+      if (commonFreeHours.length > 0) {
+        let startHour = commonFreeHours[0];
+        let prevHour = startHour;
+
+        for (let i = 1; i <= commonFreeHours.length; i++) {
+          const hour = commonFreeHours[i];
+          if (hour === prevHour + 1) {
+            prevHour = hour;
+          } else {
+            // End of block
+            formattedSlots.push(`${formatHour(startHour)} - ${formatHour(prevHour + 1)}`);
+            startHour = hour;
+            prevHour = hour;
+          }
+        }
+      }
+
+      calendarCells.push(
+        <div key={dateStr} className="calendar-cell">
+          <div className="calendar-date">{day}</div>
+          {commonFreeHours.length > 0 ? (
+            <>
+              <div className="free-time-badge">Free Time!</div>
+              <div className="free-hours-tooltip">
+                <strong style={{color: 'var(--success)'}}>Available Slots:</strong>
+                {formattedSlots.map((slot, idx) => (
+                  <span key={idx} style={{color: 'white', fontSize: '0.8rem'}}>{slot}</span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="busy-badge">Busy</div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="fade-in glass-panel">
-        <div className="date-selector">
-          <label>Select Date: </label>
-          <select 
-            value={selectedDate} 
-            onChange={(e) => setSelectedDate(e.target.value)}
-          >
-            {uniqueDates.map(d => (
-              <option key={d} value={d}>{formatDate(d)}</option>
-            ))}
-          </select>
-        </div>
-
-        {commonFreeHours.length > 0 ? (
-          <div className="free-time-summary fade-in">
-            <h4>Common Free Time</h4>
-            <div className="free-time-slots">
-              {commonFreeHours.map(h => (
-                <span key={h} className="time-slot">{String(h).padStart(2, '0')}:00</span>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="free-time-summary fade-in" style={{ background: 'rgba(248, 113, 113, 0.1)', borderColor: 'rgba(248, 113, 113, 0.3)' }}>
-            <h4 style={{ color: 'var(--danger)' }}>No common free time on this date</h4>
-          </div>
-        )}
-
-        <div className="timeline-container">
-          {hours.map(hour => (
-            <div key={hour} className="timeline-hour">
-              <div className="hour-label">
-                {String(hour).padStart(2, '0')}:00
-              </div>
-              <div className="hour-blocks">
-                {interns.map(intern => {
-                  const isBusy = isInternBusy(intern, selectedDate, hour);
-                  return (
-                    <div 
-                      key={`${intern.id}-${hour}`} 
-                      className={`person-block ${isBusy ? 'unavailable' : 'available'}`}
-                      title={`${intern.name}: ${isBusy ? 'Busy' : 'Free'}`}
-                    >
-                      {intern.name.split(',')[0]}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+        <h2 style={{textAlign: 'center', marginBottom: '1rem'}}>August 2026</h2>
+        <p style={{textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '1rem'}}>
+          Showing overlapping free time during waking hours (8:00 AM - 10:00 PM). Hover over green days to see exact times.
+        </p>
+        <div className="calendar-grid">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="calendar-day-header">{day}</div>
           ))}
+          {calendarCells}
         </div>
       </div>
     );
@@ -201,12 +227,12 @@ export default function App() {
           className={`tab-btn ${activeTab === 'freetime' ? 'active' : ''}`}
           onClick={() => setActiveTab('freetime')}
         >
-          Free Time Finder
+          Free Time Calendar
         </button>
       </div>
 
       <main>
-        {activeTab === 'dashboard' ? renderDashboard() : renderFreeTimeFinder()}
+        {activeTab === 'dashboard' ? renderDashboard() : renderFreeTimeCalendar()}
       </main>
     </div>
   );
