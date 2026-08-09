@@ -119,19 +119,23 @@ h1 {
   overflow-x: auto;
   border: 1px solid var(--border-color);
   border-radius: 4px;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .schedule-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: center;
-  min-width: 900px;
+  min-width: 1400px;
   background: var(--table-bg);
 }
 
 .schedule-table th,
 .schedule-table td {
-  border: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
   padding: 0.75rem 0.5rem;
   font-size: 0.9rem;
 }
@@ -140,6 +144,10 @@ h1 {
   background: var(--table-header-bg);
   font-weight: 600;
   color: var(--text-primary);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  border-top: 1px solid var(--border-color);
 }
 
 .schedule-table .intern-name {
@@ -148,6 +156,14 @@ h1 {
   background: var(--table-header-bg);
   color: var(--text-primary);
   white-space: nowrap;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  border-left: 1px solid var(--border-color);
+}
+
+.schedule-table th.intern-name {
+  z-index: 15;
 }
 
 /* Shift Colors (Pastel theme matching spreadsheet) */
